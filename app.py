@@ -801,6 +801,7 @@ with tab_sites:
                 "City Class (Ven)", "City Class (BSNL)",
                 "BSNL 4G Tech",
                 "Total Billed (₹)",
+                "Outage Hours",
                 "Deduction Tenancy (₹)", "Deduction City Class (₹)", "Deduction Loading (₹)", "Deduction Outage (₹)",
                 "Total Deductions (₹)", "Net Approved (₹)",
                 "Audit Status", "Deduction Remarks",
@@ -816,6 +817,7 @@ with tab_sites:
             st.dataframe(
                 table_df.style.format({
                     "Total Billed (₹)": "₹{:,.2f}",
+                    "Outage Hours": "{:.2f}h",
                     "Deduction Tenancy (₹)": "₹{:,.2f}",
                     "Deduction City Class (₹)": "₹{:,.2f}",
                     "Deduction Loading (₹)": "₹{:,.2f}",
@@ -898,6 +900,14 @@ with tab_outage:
         if df_out.empty:
             st.info("No outage sign-off records found.")
         else:
+            # Outage view filter toggle
+            outage_filter_status = st.radio(
+                "Filter by Downtime Status",
+                ["⚡ Sites with Downtime (> 0 Hrs)", "All Recorded Sites (987)", "Zero Downtime Sites (NIL)"],
+                horizontal=True,
+                key="outage_status_toggle"
+            )
+
             # Outage Filters
             o_col1, o_col2, o_col3 = st.columns([1, 1, 2])
             with o_col1:
@@ -917,6 +927,11 @@ with tab_outage:
 
             # Apply Outage Filters
             view_out = df_out.copy()
+            if outage_filter_status == "⚡ Sites with Downtime (> 0 Hrs)":
+                view_out = view_out[view_out["duration_hours"] > 0]
+            elif outage_filter_status == "Zero Downtime Sites (NIL)":
+                view_out = view_out[view_out["duration_hours"] == 0]
+
             if sel_op != "All" and "operator" in view_out.columns:
                 view_out = view_out[view_out["operator"].astype(str) == sel_op]
             if sel_ssa_o != "All" and "ssa" in view_out.columns:
@@ -965,6 +980,9 @@ with tab_outage:
                     display_out[col] = pd.to_numeric(display_out[col], errors="coerce").fillna(0.0)
                 else:
                     display_out[col] = display_out[col].fillna("").astype(str)
+
+            # Sort with highest downtime first
+            display_out = display_out.sort_values(by="Downtime (Hours)", ascending=False)
 
             st.dataframe(
                 display_out.style.format({
