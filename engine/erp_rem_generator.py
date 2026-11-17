@@ -498,6 +498,67 @@ class ERPREMGenerator:
         return zip_buf.getvalue()
 
     @classmethod
+    def generate_grouped_invoices_zip(
+        cls,
+        grouped_sites: Dict[str, List[Dict[str, Any]]],
+        bill_type: str = "RENT",
+        circle_code: str = "GJ",
+        company_code: int = 1100,
+        business_entity: str = "16400000",
+        vendor_no: str = "2004755",
+        invoice_date: str = "05.05.2026",
+        from_date: str = "01.04.2026",
+        to_date: str = "30.04.2026",
+        period: int = 1,
+        fiscal_year: int = 2026
+    ) -> bytes:
+        """
+        Creates a master ZIP package where each distinct bill number has its own folder
+        containing the 3 official BSNL SAP REM upload templates for that bill.
+        """
+        master_buf = io.BytesIO()
+        with zipfile.ZipFile(master_buf, "w", zipfile.ZIP_DEFLATED) as master_z:
+            for inv_no, sites in grouped_sites.items():
+                if not sites:
+                    continue
+                inv_clean = str(inv_no).strip()
+                b_inv = cls.generate_invoice_upload(
+                    invoice_no=inv_clean,
+                    sites=sites,
+                    bill_type=bill_type,
+                    circle_code=circle_code,
+                    company_code=company_code,
+                    business_entity=business_entity,
+                    vendor_no=vendor_no,
+                    from_date=from_date,
+                    to_date=to_date
+                )
+                b_det = cls.generate_invoice_detail_upload(
+                    invoice_no=inv_clean,
+                    sites=sites,
+                    circle_code=circle_code,
+                    company_code=company_code,
+                    vendor_no=vendor_no,
+                    invoice_date=invoice_date,
+                    period=period,
+                    fiscal_year=fiscal_year
+                )
+                b_cond = cls.generate_condition_upload(
+                    sites=sites,
+                    bill_type=bill_type,
+                    circle_code=circle_code,
+                    company_code=company_code,
+                    from_date=from_date,
+                    to_date=to_date
+                )
+                folder = f"Invoice_{inv_clean}"
+                master_z.writestr(f"{folder}/INVOICE_UPLOAD_{circle_code}_{bill_type}_{inv_clean}.xlsx", b_inv)
+                master_z.writestr(f"{folder}/INVOICE_DETAIL_UPLOAD_{circle_code}_{bill_type}_{inv_clean}.xlsx", b_det)
+                master_z.writestr(f"{folder}/CONDITION_UPLOAD_{circle_code}_{bill_type}_{inv_clean}.xlsx", b_cond)
+
+        return master_buf.getvalue()
+
+    @classmethod
     def generate_master_all_invoices_zip(
         cls,
         excel_path: str,

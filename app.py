@@ -1013,24 +1013,6 @@ with tab_rem:
         if df_rem_sites.empty:
             st.info("No sites loaded to generate SAP REM templates.")
         else:
-            st.caption(f"Configured for **{len(df_rem_sites)} sites** from the Gujarat ATC April 2026 Master Billing Dataset.")
-
-            r_col1, r_col2, r_col3 = st.columns(3)
-            with r_col1:
-                rent_stream_type = st.selectbox("Condition Stream", ["🏢 IP Tower Rent (T500)", "🏠 Ground / Landlord Rent (T630)"], key="rem_tab_stream")
-            with r_col2:
-                rent_vendor_no = st.text_input("Registered Vendor Code", "2004755", key="rem_tab_vendor")
-            with r_col3:
-                rent_circle_code = st.text_input("Circle Code (Sheet Identifier)", "GJ", key="rem_tab_circle")
-
-            rent_stream_code = "RENT" if "Tower Rent" in rent_stream_type else "LLR"
-            rent_fy_period = ERPREMGenerator.get_fy_period(month_selected)
-            rent_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
-            rent_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
-            next_m = 1 if m_num == 12 else m_num + 1
-            next_y = y_num + 1 if m_num == 12 else y_num
-            rent_inv_dt = f"05.{str(next_m).zfill(2)}.{next_y}"
-
             def clean_int_str(val):
                 if pd.isna(val) or val is None:
                     return ""
@@ -1039,104 +1021,257 @@ with tab_rem:
                 except:
                     return str(val).strip()
 
-            gj_site_records = []
-            for _, r in df_rem_sites.iterrows():
-                c_no = clean_int_str(r.get("ISA"))
-                if not c_no:
-                    gid = clean_int_str(r.get("GLOBAL_SITE_ID", ""))
-                    c_no = f"1653000{gid.zfill(6)}" if gid else "1653000000001"
-                ro_no = clean_int_str(r.get("RO"))
-                inv_no = clean_int_str(r.get("Invoice no"))
-                app_rent = float(r.get("Net Approved (₹)", r.get("Total IP Fee", 0.0)) or 0.0)
-                out_pen = float(r.get("Deduction Outage (₹)", 0.0) or 0.0)
+            df_rem_sites["clean_inv"] = df_rem_sites["Invoice no"].apply(clean_int_str)
+            distinct_bills = sorted([x for x in df_rem_sites["clean_inv"].unique() if x and x != "nan"])
 
-                gj_site_records.append({
-                    "contract_no": c_no,
-                    "rental_object_no": ro_no if ro_no else None,
-                    "site_name": str(r.get("Site Name", "")),
-                    "approved_rent": app_rent,
-                    "ground_rent": 0.0,
-                    "outage_penalty": out_pen,
-                    "base_passed": app_rent,
-                    "invoice_no": inv_no
-                })
+            st.caption(f"Configured for **{len(df_rem_sites)} sites** across **{len(distinct_bills)} distinct vendor bills (invoices)** from the Gujarat ATC April 2026 Master Billing Dataset.")
 
-            st.markdown("#### 📥 Download BSNL ERP REM Upload Spreadsheets")
-            r_zip_btn, r_b1, r_b2, r_b3 = st.columns([1.4, 1, 1, 1])
-            with r_zip_btn:
-                zip_rent_pkg = ERPREMGenerator.generate_all_3_templates_zip(
-                    invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
-                    sites=gj_site_records,
+            rent_stream_type = st.radio("Condition Stream", ["🏢 IP Tower Rent (T500)", "🏠 Ground / Landlord Rent (T630)"], horizontal=True, key="rem_tab_stream")
+            rent_stream_code = "RENT" if "Tower Rent" in rent_stream_type else "LLR"
+            rent_fy_period = ERPREMGenerator.get_fy_period(month_selected)
+            rent_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
+            rent_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
+            next_m = 1 if m_num == 12 else m_num + 1
+            next_y = y_num + 1 if m_num == 12 else y_num
+            rent_inv_dt = f"05.{str(next_m).zfill(2)}.{next_y}"
+
+            r_col1, r_col2, r_col3 = st.columns([1, 1, 2])
+            with r_col1:
+                rent_vendor_no = st.text_input("Registered Vendor Code", "2004755", key="rem_tab_vendor")
+            with r_col2:
+                rent_circle_code = st.text_input("Circle Code", "GJ", key="rem_tab_circle")
+            with r_col3:
+                bill_selector_options = ["📦 All Bills (Master Package with 3 Templates per Bill)"] + [
+                    f"Bill {b} ({len(df_rem_sites[df_rem_sites['clean_inv'] == b])} sites)" for b in distinct_bills
+                ]
+                sel_bill_choice = st.selectbox("Select Target Bill / Invoice", bill_selector_options, key="rem_tab_sel_bill")
+
+            # Prepare structured site records grouped by bill number
+            grouped_site_records = {}
+            for b in distinct_bills:
+                sub_b = df_rem_sites[df_rem_sites["clean_inv"] == b]
+                records_b = []
+                for _, r in sub_b.iterrows():
+                    c_no = clean_int_str(r.get("ISA"))
+                    if not c_no:
+                        gid = clean_int_str(r.get("GLOBAL_SITE_ID", ""))
+                        c_no = f"1653000{gid.zfill(6)}" if gid else "1653000000001"
+                    ro_no = clean_int_str(r.get("RO"))
+                    inv_no = b
+                    app_rent = float(r.get("Net Approved (₹)", r.get("Total IP Fee", 0.0)) or 0.0)
+                    out_pen = float(r.get("Deduction Outage (₹)", 0.0) or 0.0)
+
+                    records_b.append({
+                        "contract_no": c_no,
+                        "rental_object_no": ro_no if ro_no else None,
+                        "site_name": str(r.get("Site Name", "")),
+                        "approved_rent": app_rent,
+                        "ground_rent": 0.0,
+                        "outage_penalty": out_pen,
+                        "base_passed": app_rent,
+                        "invoice_no": inv_no
+                    })
+                grouped_site_records[b] = records_b
+
+            st.markdown("---")
+
+            if sel_bill_choice.startswith("📦 All Bills"):
+                st.markdown(f"#### 📦 Master Package for All {len(distinct_bills)} Bills (3 Upload Templates per Bill)")
+                st.caption(f"Generates {len(distinct_bills) * 3} spreadsheets (3 official templates for each of the {len(distinct_bills)} vendor bills), organized in folders by bill number.")
+
+                master_all_zip = ERPREMGenerator.generate_grouped_invoices_zip(
+                    grouped_sites=grouped_site_records,
                     bill_type=rent_stream_code,
                     circle_code=rent_circle_code,
                     vendor_no=rent_vendor_no,
-                    period=rent_fy_period,
-                    fiscal_year=y_num,
                     invoice_date=rent_inv_dt,
                     from_date=rent_f_dt,
-                    to_date=rent_t_dt
-                )
-                st.download_button(
-                    label=f"📦 Complete Gujarat REM Package (.ZIP)",
-                    data=zip_rent_pkg,
-                    file_name=f"BSNL_REM_UPLOAD_{rent_circle_code}_{rent_stream_code}_{month_selected}{year_selected}.zip",
-                    mime="application/zip",
-                    type="primary",
-                    use_container_width=True,
-                    key="btn_zip_rent_tab_gj"
-                )
-            with r_b1:
-                inv_rent_bytes = ERPREMGenerator.generate_invoice_upload(
-                    invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
-                    sites=gj_site_records,
-                    bill_type=rent_stream_code,
-                    circle_code=rent_circle_code,
-                    vendor_no=rent_vendor_no,
-                    from_date=rent_f_dt,
-                    to_date=rent_t_dt
-                )
-                st.download_button(
-                    label="📄 1. INVOICE UPLOAD",
-                    data=inv_rent_bytes,
-                    file_name=f"INVOICE_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key="btn_inv_rent_tab_gj"
-                )
-            with r_b2:
-                det_rent_bytes = ERPREMGenerator.generate_invoice_detail_upload(
-                    invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
-                    sites=gj_site_records,
-                    circle_code=rent_circle_code,
-                    vendor_no=rent_vendor_no,
-                    invoice_date=rent_inv_dt,
+                    to_date=rent_t_dt,
                     period=rent_fy_period,
                     fiscal_year=y_num
                 )
                 st.download_button(
-                    label="📄 2. DETAIL UPLOAD",
-                    data=det_rent_bytes,
-                    file_name=f"INVOICE_detail_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    label=f"📦 Download Complete Master Package for All {len(distinct_bills)} Bills (.ZIP — 24 Templates)",
+                    data=master_all_zip,
+                    file_name=f"BSNL_REM_MASTER_PACKAGE_{rent_circle_code}_{rent_stream_code}_{month_selected}{year_selected}.zip",
+                    mime="application/zip",
+                    type="primary",
                     use_container_width=True,
-                    key="btn_det_rent_tab_gj"
+                    key="btn_dl_master_all_bills_zip"
                 )
-            with r_b3:
-                cond_rent_bytes = ERPREMGenerator.generate_condition_upload(
-                    sites=gj_site_records,
-                    bill_type=rent_stream_code,
-                    circle_code=rent_circle_code,
-                    from_date=rent_f_dt,
-                    to_date=rent_t_dt
-                )
-                st.download_button(
-                    label=f"📄 3. CONDITION ({rent_stream_code})",
-                    data=cond_rent_bytes,
-                    file_name=f"CONDITION_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key="btn_cond_rent_tab_gj"
-                )
+
+                st.markdown("##### 📋 Individual Bill Download Schedule:")
+                for b_no in distinct_bills:
+                    sites_this_bill = grouped_site_records.get(b_no, [])
+                    sub_df = df_rem_sites[df_rem_sites["clean_inv"] == b_no]
+                    tot_app = sub_df["Net Approved (₹)"].sum()
+                    with st.expander(f"📄 Bill {b_no} — {len(sites_this_bill)} sites | Net Approved: ₹{tot_app:,.2f}", expanded=False):
+                        b_col_z, b_c1, b_c2, b_c3 = st.columns([1.5, 1, 1, 1])
+                        with b_col_z:
+                            zip_this_bill = ERPREMGenerator.generate_all_3_templates_zip(
+                                invoice_no=b_no,
+                                sites=sites_this_bill,
+                                bill_type=rent_stream_code,
+                                circle_code=rent_circle_code,
+                                vendor_no=rent_vendor_no,
+                                period=rent_fy_period,
+                                fiscal_year=y_num,
+                                invoice_date=rent_inv_dt,
+                                from_date=rent_f_dt,
+                                to_date=rent_t_dt
+                            )
+                            st.download_button(
+                                label=f"📦 3 Templates for Bill {b_no} (.ZIP)",
+                                data=zip_this_bill,
+                                file_name=f"REM_UPLOAD_{rent_circle_code}_{b_no}.zip",
+                                mime="application/zip",
+                                type="primary",
+                                key=f"dl_zip_bill_{b_no}"
+                            )
+                        with b_c1:
+                            inv_bytes = ERPREMGenerator.generate_invoice_upload(
+                                invoice_no=b_no,
+                                sites=sites_this_bill,
+                                bill_type=rent_stream_code,
+                                circle_code=rent_circle_code,
+                                vendor_no=rent_vendor_no,
+                                from_date=rent_f_dt,
+                                to_date=rent_t_dt
+                            )
+                            st.download_button(
+                                label="📄 1. INVOICE UPLOAD",
+                                data=inv_bytes,
+                                file_name=f"INVOICE_UPLOAD_{b_no}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_inv_bill_{b_no}"
+                            )
+                        with b_c2:
+                            det_bytes = ERPREMGenerator.generate_invoice_detail_upload(
+                                invoice_no=b_no,
+                                sites=sites_this_bill,
+                                circle_code=rent_circle_code,
+                                vendor_no=rent_vendor_no,
+                                invoice_date=rent_inv_dt,
+                                period=rent_fy_period,
+                                fiscal_year=y_num
+                            )
+                            st.download_button(
+                                label="📄 2. DETAIL UPLOAD",
+                                data=det_bytes,
+                                file_name=f"INVOICE_DETAIL_UPLOAD_{b_no}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_det_bill_{b_no}"
+                            )
+                        with b_c3:
+                            cond_bytes = ERPREMGenerator.generate_condition_upload(
+                                sites=sites_this_bill,
+                                bill_type=rent_stream_code,
+                                circle_code=rent_circle_code,
+                                from_date=rent_f_dt,
+                                to_date=rent_t_dt
+                            )
+                            st.download_button(
+                                label=f"📄 3. CONDITION",
+                                data=cond_bytes,
+                                file_name=f"CONDITION_UPLOAD_{b_no}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_cond_bill_{b_no}"
+                            )
+            else:
+                # Individual Bill Selected
+                target_bill = sel_bill_choice.split()[1]
+                sites_this_bill = grouped_site_records.get(target_bill, [])
+                sub_df = df_rem_sites[df_rem_sites["clean_inv"] == target_bill]
+                tot_billed = sub_df["Total Billed (₹)"].sum()
+                tot_ded = sub_df["Total Deductions (₹)"].sum()
+                tot_app = sub_df["Net Approved (₹)"].sum()
+
+                st.markdown(f"#### 📄 3 Templates for Bill Number: `{target_bill}`")
+                m_b1, m_b2, m_b3, m_b4 = st.columns(4)
+                with m_b1:
+                    st.metric("Sites in Bill", f"{len(sites_this_bill)} Sites")
+                with m_b2:
+                    st.metric("Claimed Amount", f"₹{tot_billed:,.2f}")
+                with m_b3:
+                    st.metric("Deductions Disallowed", f"₹{tot_ded:,.2f}")
+                with m_b4:
+                    st.metric("Net Approved Payable", f"₹{tot_app:,.2f}")
+
+                r_zip_btn, r_b1, r_b2, r_b3 = st.columns([1.4, 1, 1, 1])
+                with r_zip_btn:
+                    zip_this_bill = ERPREMGenerator.generate_all_3_templates_zip(
+                        invoice_no=target_bill,
+                        sites=sites_this_bill,
+                        bill_type=rent_stream_code,
+                        circle_code=rent_circle_code,
+                        vendor_no=rent_vendor_no,
+                        period=rent_fy_period,
+                        fiscal_year=y_num,
+                        invoice_date=rent_inv_dt,
+                        from_date=rent_f_dt,
+                        to_date=rent_t_dt
+                    )
+                    st.download_button(
+                        label=f"📦 All 3 Templates for Bill {target_bill} (.ZIP)",
+                        data=zip_this_bill,
+                        file_name=f"BSNL_REM_UPLOAD_{rent_circle_code}_{target_bill}.zip",
+                        mime="application/zip",
+                        type="primary",
+                        use_container_width=True,
+                        key=f"btn_zip_single_{target_bill}"
+                    )
+                with r_b1:
+                    inv_bytes = ERPREMGenerator.generate_invoice_upload(
+                        invoice_no=target_bill,
+                        sites=sites_this_bill,
+                        bill_type=rent_stream_code,
+                        circle_code=rent_circle_code,
+                        vendor_no=rent_vendor_no,
+                        from_date=rent_f_dt,
+                        to_date=rent_t_dt
+                    )
+                    st.download_button(
+                        label="📄 1. INVOICE UPLOAD",
+                        data=inv_bytes,
+                        file_name=f"INVOICE_UPLOAD_{rent_circle_code}_{target_bill}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key=f"btn_inv_single_{target_bill}"
+                    )
+                with r_b2:
+                    det_bytes = ERPREMGenerator.generate_invoice_detail_upload(
+                        invoice_no=target_bill,
+                        sites=sites_this_bill,
+                        circle_code=rent_circle_code,
+                        vendor_no=rent_vendor_no,
+                        invoice_date=rent_inv_dt,
+                        period=rent_fy_period,
+                        fiscal_year=y_num
+                    )
+                    st.download_button(
+                        label="📄 2. DETAIL UPLOAD",
+                        data=det_bytes,
+                        file_name=f"INVOICE_detail_UPLOAD_{rent_circle_code}_{target_bill}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key=f"btn_det_single_{target_bill}"
+                    )
+                with r_b3:
+                    cond_bytes = ERPREMGenerator.generate_condition_upload(
+                        sites=sites_this_bill,
+                        bill_type=rent_stream_code,
+                        circle_code=rent_circle_code,
+                        from_date=rent_f_dt,
+                        to_date=rent_t_dt
+                    )
+                    st.download_button(
+                        label=f"📄 3. CONDITION ({rent_stream_code})",
+                        data=cond_bytes,
+                        file_name=f"CONDITION_UPLOAD_{rent_circle_code}_{target_bill}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        key=f"btn_cond_single_{target_bill}"
+                    )
 
 
 # ----------------- TAB 10: MSA RULES & CIRCULAR AMENDMENTS (NEW INTERACTIVE SECTION) -----------------
@@ -1447,45 +1582,70 @@ with tab_export:
 
         st.markdown("---")
         st.markdown("### 📦 4. BSNL SAP REM ERP Bulk Upload Package")
-        st.caption("Official BSNL ERP Real Estate Management package for Company Code 1100 and Circle GJ.")
+        st.caption("Official BSNL ERP Real Estate Management package: 3 upload spreadsheets per bill across all 8 vendor invoices.")
         gj_d = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
         df_exp_sites = gj_d.get("sites_df", pd.DataFrame())
         if not df_exp_sites.empty:
-            exp_site_records = []
-            for _, r in df_exp_sites.iterrows():
-                c_no = r.get("ISA")
-                if pd.isna(c_no):
-                    c_no = f"2353000{str(r.get('GLOBAL_SITE_ID', r.get('IP ID', '')))[:6]}"
-                exp_site_records.append({
-                    "contract_no": str(c_no).split('.')[0].strip(),
-                    "rental_object_no": str(r.get("RO", "")).split('.')[0].strip() if pd.notna(r.get("RO")) else None,
-                    "site_name": str(r.get("Site Name", "")),
-                    "approved_rent": float(r.get("Total IP Fee", 0.0) or 0.0),
-                    "ground_rent": 0.0,
-                    "outage_penalty": 0.0,
-                    "base_passed": float(r.get("Total IP Fee", 0.0) or 0.0)
-                })
+            def clean_int_str(val):
+                if pd.isna(val) or val is None:
+                    return ""
+                try:
+                    return str(int(float(val)))
+                except:
+                    return str(val).strip()
+
+            df_exp_sites["clean_inv"] = df_exp_sites["Invoice no"].apply(clean_int_str)
+            dist_bills = sorted([x for x in df_exp_sites["clean_inv"].unique() if x and x != "nan"])
+
+            grouped_exp = {}
+            for b in dist_bills:
+                sub_b = df_exp_sites[df_exp_sites["clean_inv"] == b]
+                records_b = []
+                for _, r in sub_b.iterrows():
+                    c_no = clean_int_str(r.get("ISA"))
+                    if not c_no:
+                        gid = clean_int_str(r.get("GLOBAL_SITE_ID", ""))
+                        c_no = f"1653000{gid.zfill(6)}" if gid else "1653000000001"
+                    ro_no = clean_int_str(r.get("RO"))
+                    app_rent = float(r.get("Net Approved (₹)", r.get("Total IP Fee", 0.0)) or 0.0)
+                    out_pen = float(r.get("Deduction Outage (₹)", 0.0) or 0.0)
+
+                    records_b.append({
+                        "contract_no": c_no,
+                        "rental_object_no": ro_no if ro_no else None,
+                        "site_name": str(r.get("Site Name", "")),
+                        "approved_rent": app_rent,
+                        "ground_rent": 0.0,
+                        "outage_penalty": out_pen,
+                        "base_passed": app_rent,
+                        "invoice_no": b
+                    })
+                grouped_exp[b] = records_b
 
             exp_fy_p = ERPREMGenerator.get_fy_period(month_selected)
             exp_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
             exp_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
+            next_m = 1 if m_num == 12 else m_num + 1
+            next_y = y_num + 1 if m_num == 12 else y_num
+            exp_inv_dt = f"05.{str(next_m).zfill(2)}.{next_y}"
 
-            zip_bytes = ERPREMGenerator.generate_all_3_templates_zip(
-                invoice_no=f"GJ-{month_selected}{year_selected}-BATCH",
-                sites=exp_site_records,
+            zip_bytes = ERPREMGenerator.generate_grouped_invoices_zip(
+                grouped_sites=grouped_exp,
                 bill_type="RENT",
                 circle_code="GJ",
                 vendor_no="2004755",
+                invoice_date=exp_inv_dt,
                 period=exp_fy_p,
                 fiscal_year=y_num,
                 from_date=exp_f_dt,
                 to_date=exp_t_dt
             )
             st.download_button(
-                label="📦 Download Complete Gujarat REM Package (.ZIP)",
+                label=f"📦 Download Complete Gujarat REM Package (All {len(dist_bills)} Bills — 24 Templates .ZIP)",
                 data=zip_bytes,
-                file_name=f"BSNL_REM_UPLOAD_GJ_RENT_{month_selected}{year_selected}.zip",
+                file_name=f"BSNL_REM_MASTER_PACKAGE_GJ_RENT_{month_selected}{year_selected}.zip",
                 mime="application/zip",
+                type="primary",
                 use_container_width=True,
                 key="btn_export_zip_gj"
             )
