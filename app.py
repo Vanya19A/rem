@@ -648,7 +648,7 @@ with tab_upload:
 # ----------------- TAB 2: GUJARAT MASTER INVOICES CONSOLE -----------------
 with tab_console:
     st.subheader(f"📊 Gujarat Circle IP Fee & Vendor Invoices Master Console — {vendor_selected} ({month_selected}-{year_selected})")
-    st.write("Comprehensive billing console for monthly fixed infrastructure rental fees, 4G BBU/RRU additions, tenancy rate verification, and invoice-by-invoice reconciliation.")
+    st.write("Cross-comparison of vendor submitted IP fee consoles with BSNL internal checklist records (`EDIL_P&F_checklist_25-26.xlsx` sheet `March-26`) and outage sign-offs.")
 
     if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
         render_no_data_banner("Gujarat Master Invoices", vendor_selected, circle_selected, month_selected, year_selected)
@@ -658,8 +658,9 @@ with tab_console:
             st.error(f"Error loading Gujarat master data: {gj_data.get('error', 'No site records found')}")
         else:
             tot_sites = gj_data.get("total_sites", 0)
+            c_billed = gj_data.get("total_billed", 0.0)
             c_pass = gj_data.get("total_passed", 0.0)
-            c_claim = gj_data.get("total_claimed", c_pass * 1.18)
+            c_ded = gj_data.get("total_deductions", 0.0)
             gst_amt = c_pass * 0.18
             tot_payable = c_pass + gst_amt
             df_invoices = gj_data.get("invoices_summary_df", pd.DataFrame())
@@ -669,22 +670,34 @@ with tab_console:
             with k1:
                 st.metric("Total Leased Sites", f"{tot_sites:,} Sites")
             with k2:
-                st.metric("Total Claimed Rent", f"₹{c_pass:,.2f}")
+                st.metric("Vendor Claimed (Excl. Tax)", f"₹{c_billed:,.2f}")
             with k3:
-                st.metric("BSNL Approved Rent", f"₹{c_pass:,.2f}")
+                st.metric("Total Deductions", f"₹{c_ded:,.2f}", delta="-Credit Note Recovery", delta_color="inverse")
             with k4:
-                st.metric("GST @ 18%", f"₹{gst_amt:,.2f}")
+                st.metric("BSNL Approved (Excl. Tax)", f"₹{c_pass:,.2f}")
             with k5:
-                st.metric("Total Approved With GST", f"₹{tot_payable:,.2f}")
+                st.metric("Net Payable With GST", f"₹{tot_payable:,.2f}")
+
+            # Itemized Deductions by Head (Pills / Cards)
+            st.markdown("#### ⚖️ Itemized Disallowances & Deductions by Head")
+            d1, d2, d3, d4 = st.columns(4)
+            with d1:
+                st.metric("Tenancy Sharing Deductions", f"₹{gj_data.get('tenancy_deductions', 0.0):,.2f}", delta="Single vs Shared Mismatch")
+            with d2:
+                st.metric("City Class Deductions", f"₹{gj_data.get('city_deductions', 0.0):,.2f}", delta="Class Rate Disallowance")
+            with d3:
+                st.metric("4G Loading Markups Disallowed", f"₹{gj_data.get('loading_deductions', 0.0):,.2f}", delta="BSNL 4G = 0 (Unapproved)")
+            with d4:
+                st.metric("Outage SLA Penalties", f"₹{gj_data.get('outage_deductions', 0.0):,.2f}", delta="Downtime > 43.2 mins")
 
             st.markdown("---")
-            st.markdown(f"### 📋 ATC Gujarat Monthly IP Rental Invoices Matrix ({len(df_invoices)} Invoices)")
+            st.markdown(f"### 📋 ATC Gujarat Monthly IP Rental Invoices Reconciliation Matrix ({len(df_invoices)} Invoices)")
             if not df_invoices.empty:
                 st.dataframe(
                     df_invoices.style.format({
-                        "BSNL Passed Excl. GST (₹)": "₹{:,.2f}",
-                        "Vendor Claimed With GST (₹)": "₹{:,.2f}",
-                        "Total Deduction / Diff (₹)": "₹{:,.2f}",
+                        "Vendor Claimed Excl. GST (₹)": "₹{:,.2f}",
+                        "Total Deduction / Recovery (₹)": "₹{:,.2f}",
+                        "BSNL Approved Excl. GST (₹)": "₹{:,.2f}",
                         "GST @ 18% (₹)": "₹{:,.2f}",
                         "Net Payable Incl. GST (₹)": "₹{:,.2f}"
                     }),
@@ -696,30 +709,27 @@ with tab_console:
             c_h1, c_h2 = st.columns(2)
             with c_h1:
                 st.info(f"""
-                **Billing & 4G Addition Rate Card Compliance:**
-                * **524 Operating Sites** audited across all 16 Gujarat Telecom Districts (SSAs).
-                * **Applied MSA Base Rate:** Standardized under 3rd EoI MSA sharing slabs.
-                * **4G Infrastructure Additions:**
-                  - Antenna Loading: **₹650 / month**
-                  - Power Equipment Markup: **₹3,000 / month**
-                  - 4G BTS Loading Markup: **₹3,750 / month**
-                  - Total Standard Loading: **₹7,400 / month per 4G site**
+                **BSNL Checklist Record Cross-Verification (`EDIL_P&F_checklist_25-26.xlsx`):**
+                * **524 Leased Sites** cross-audited against BSNL internal records (Sheet `March-26`).
+                * **Tenancy Overbilling:** Sites where vendor claimed single tenant (₹28,626/₹17,303) while BSNL records show 2 or 3 tenants were adjusted to sharing rate.
+                * **Unauthorized 4G Loading:** 4G markups (₹650 Antenna, ₹3,000 Power, ₹3,750 BTS) were disallowed on sites where BSNL checklist indicates `4G = 0`.
+                * **City Class Disallowances:** Sites categorized as higher city class by vendor corrected to BSNL verified circle classification.
                 """)
             with c_h2:
                 pen_cnt = len(gj_data.get("penalties_df", []))
                 tot_pen_amt = float(gj_data.get("penalties_df", pd.DataFrame())["Deployment penalty"].sum()) if pen_cnt > 0 and "Deployment penalty" in gj_data.get("penalties_df", pd.DataFrame()).columns else 0.0
                 st.warning(f"""
-                **Contractual Deductions & SLA Tracking:**
-                * **Deployment Delay Penalties:** **{pen_cnt} delayed delivery sites** identified with excess SO-to-RFI lead times. Total contractual recovery: **₹{tot_pen_amt:,.2f}**.
-                * **Outage & SLA Sign-Offs:** **{len(gj_data.get('outage_df', []))} downtime entries** logged across all operators in Gujarat field reports.
-                * **SAP REM Upload Readiness:** Clean 100% formatted templates ready for bulk ERP upload under Company Code `1100` and Circle Code `GJ`.
+                **Additional Contractual Recoveries:**
+                * **Deployment Delay Penalties:** **{pen_cnt} delayed delivery sites** with lead times exceeding stipulated SO-to-RFI window. Total contractual deduction: **₹{tot_pen_amt:,.2f}**.
+                * **Outage SLA Penalties:** **₹{gj_data.get('outage_deductions', 0.0):,.2f}** recovered for excess downtime exceeding 43.2 mins threshold per 3rd EoI MSA.
+                * **Total Vendor Recovery (Debit Note):** **₹{(c_ded + tot_pen_amt):,.2f}** to be recovered from ATC payment.
                 """)
 
 
 # ----------------- TAB 3: SITE-BY-SITE LEASED SITES AUDIT -----------------
 with tab_sites:
     st.subheader(f"🔍 Site-by-Site Leased Sites Tower Rental Audit — Gujarat ({month_selected}-{year_selected})")
-    st.write("Detailed audit registry of each tower site: city classification, tenancy count, 4G markups, and applied rental fee.")
+    st.write("Detailed audit registry showing parameters as per BSNL record vs IP Vendor claim, itemized deductions by head (Tenancy, City Class, Loading, Outage), and net approved payable.")
 
     if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
         render_no_data_banner("Site-by-Site Audit", vendor_selected, circle_selected, month_selected, year_selected)
@@ -733,52 +743,109 @@ with tab_sites:
             # Filters
             f1, f2, f3, f4 = st.columns([1, 1, 1, 2])
             with f1:
-                ssa_col = next((c for c in df_sites.columns if "SSA" in str(c)), None)
+                filter_disallow = st.selectbox("Filter Status", ["All Sites", "Only Deductions (> ₹0)", "Fully Passed Sites"], key="site_filter_disallow")
+
+            with f2:
+                ssa_col = "SSA" if "SSA" in df_sites.columns else None
                 ssa_opts = ["All"]
                 if ssa_col:
                     ssa_opts += sorted([str(x) for x in df_sites[ssa_col].dropna().unique() if str(x) not in ["nan", ""]])
                 sel_ssa = st.selectbox("Filter SSA", ssa_opts, key="site_filter_ssa")
 
-            with f2:
-                inv_col = next((c for c in df_sites.columns if "Invoice" in str(c)), None)
-                inv_opts = ["All"]
-                if inv_col:
-                    inv_opts += sorted([str(x).split('.')[0].strip() for x in df_sites[inv_col].dropna().unique() if str(x).strip().isdigit()])
+            with f3:
+                inv_opts = ["All"] + sorted([str(x).split('.')[0].strip() for x in df_sites["Invoice no"].dropna().unique() if str(x).strip().isdigit()])
                 sel_inv = st.selectbox("Filter Invoice No", inv_opts, key="site_filter_inv")
 
-            with f3:
-                type_col = next((c for c in df_sites.columns if "Site Type" in str(c) or "Type" in str(c)), None)
-                type_opts = ["All"]
-                if type_col:
-                    type_opts += sorted([str(x) for x in df_sites[type_col].dropna().unique() if str(x) not in ["nan", ""]])
-                sel_type = st.selectbox("Filter Site Type", type_opts, key="site_filter_type")
-
             with f4:
-                search_kw = st.text_input("Search Site Name / IP ID / OPCO Site ID", "", key="site_search_kw")
+                search_kw = st.text_input("Search Site Name / SAP ID / OPCO Site ID / GID", "", key="site_search_kw")
 
             # Apply Filters
             view_sites = df_sites.copy()
+            if filter_disallow == "Only Deductions (> ₹0)":
+                view_sites = view_sites[view_sites["Total Deductions (₹)"] > 0]
+            elif filter_disallow == "Fully Passed Sites":
+                view_sites = view_sites[view_sites["Total Deductions (₹)"] == 0]
+
             if sel_ssa != "All" and ssa_col:
                 view_sites = view_sites[view_sites[ssa_col].astype(str) == sel_ssa]
-            if sel_inv != "All" and inv_col:
-                view_sites = view_sites[view_sites[inv_col].astype(str).str.contains(sel_inv, na=False)]
-            if sel_type != "All" and type_col:
-                view_sites = view_sites[view_sites[type_col].astype(str) == sel_type]
+            if sel_inv != "All":
+                view_sites = view_sites[view_sites["Invoice no"].astype(str) == sel_inv]
             if search_kw.strip():
                 kw = search_kw.strip().lower()
                 mask = pd.Series(False, index=view_sites.index)
-                for c in ["Site Name", "GLOBAL_SITE_ID", "Site ID", "SAP ID", "OPCO Site ID", "IP ID"]:
+                for c in ["Site Name", "GLOBAL_SITE_ID", "SAP ID", "OPCO Site ID", "Deduction Remarks"]:
                     if c in view_sites.columns:
                         mask = mask | view_sites[c].astype(str).str.lower().str.contains(kw, na=False)
                 view_sites = view_sites[mask]
 
-            st.caption(f"Showing {len(view_sites)} of {len(df_sites)} sites in Gujarat ATC leased registry")
+            # Display metrics for current filtered view
+            c_f_cnt = len(view_sites)
+            c_f_billed = view_sites["Total Billed (₹)"].sum() if "Total Billed (₹)" in view_sites.columns else 0.0
+            c_f_ded = view_sites["Total Deductions (₹)"].sum() if "Total Deductions (₹)" in view_sites.columns else 0.0
+            c_f_app = view_sites["Net Approved (₹)"].sum() if "Net Approved (₹)" in view_sites.columns else 0.0
 
-            for col in view_sites.columns:
-                if view_sites[col].dtype == object:
-                    view_sites[col] = view_sites[col].fillna("").astype(str)
+            m_v1, m_v2, m_v3, m_v4 = st.columns(4)
+            with m_v1:
+                st.caption(f"Showing **{c_f_cnt}** of **{len(df_sites)}** audited sites")
+            with m_v2:
+                st.caption(f"Billed: **₹{c_f_billed:,.2f}**")
+            with m_v3:
+                st.caption(f"Disallowed: **₹{c_f_ded:,.2f}**")
+            with m_v4:
+                st.caption(f"Net Approved: **₹{c_f_app:,.2f}**")
 
-            st.dataframe(view_sites, use_container_width=True, height=500)
+            # Format dataframe for display
+            display_cols = [
+                "GLOBAL_SITE_ID", "SAP ID", "OPCO Site ID", "Site Name", "SSA",
+                "Tenants (Ven)", "Tenants (BSNL)",
+                "City Class (Ven)", "City Class (BSNL)",
+                "BSNL 4G Tech",
+                "Total Billed (₹)",
+                "Deduction Tenancy (₹)", "Deduction City Class (₹)", "Deduction Loading (₹)", "Deduction Outage (₹)",
+                "Total Deductions (₹)", "Net Approved (₹)",
+                "Audit Status", "Deduction Remarks",
+                "Invoice no"
+            ]
+            cols_to_show = [c for c in display_cols if c in view_sites.columns]
+            table_df = view_sites[cols_to_show].copy()
+
+            for col in table_df.columns:
+                if table_df[col].dtype == object:
+                    table_df[col] = table_df[col].fillna("").astype(str)
+
+            st.dataframe(
+                table_df.style.format({
+                    "Total Billed (₹)": "₹{:,.2f}",
+                    "Deduction Tenancy (₹)": "₹{:,.2f}",
+                    "Deduction City Class (₹)": "₹{:,.2f}",
+                    "Deduction Loading (₹)": "₹{:,.2f}",
+                    "Deduction Outage (₹)": "₹{:,.2f}",
+                    "Total Deductions (₹)": "₹{:,.2f}",
+                    "Net Approved (₹)": "₹{:,.2f}"
+                }),
+                use_container_width=True,
+                height=520
+            )
+
+            # Export Reconciled Audit Sheet
+            try:
+                import io
+                excel_buffer = io.BytesIO()
+                with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+                    df_sites.to_excel(writer, sheet_name="Site-by-Site Audit", index=False)
+                    gj_data.get("invoices_summary_df", pd.DataFrame()).to_excel(writer, sheet_name="Invoice Summary", index=False)
+                    gj_data.get("penalties_df", pd.DataFrame()).to_excel(writer, sheet_name="Deployment Penalties", index=False)
+                excel_buffer.seek(0)
+                st.download_button(
+                    label="📥 Download Full Gujarat Reconciled Audit Workbook (Excel)",
+                    data=excel_buffer.getvalue(),
+                    file_name="BSNL_Gujarat_ATC_Reconciled_Audit_APR2026.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_dl_full_reconciled_audit"
+                )
+            except Exception:
+                pass
 
 
 # ----------------- TAB 4: DEPLOYMENT DELAY PENALTIES -----------------

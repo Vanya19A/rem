@@ -7,13 +7,7 @@ import re
 import os
 from typing import Dict, List, Any, Optional
 import pandas as pd
-try:
-    import fitz  # Standard PyMuPDF
-except Exception:
-    try:
-        import pymupdf as fitz
-    except Exception:
-        fitz = None
+
 
 
 class InvoiceParser:
@@ -26,6 +20,14 @@ class InvoiceParser:
         Extract high-level Tax Invoice headers from PDF.
         """
         invoices = []
+        try:
+            import fitz
+        except Exception:
+            try:
+                import pymupdf as fitz
+            except Exception:
+                fitz = None
+
         if fitz is None:
             raise ImportError("PyMuPDF is not properly installed. Please run: pip install PyMuPDF==1.24.14")
         doc = fitz.open(pdf_path)

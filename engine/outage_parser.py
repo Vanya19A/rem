@@ -6,13 +6,7 @@ Extracts SSA-wise outage sign-offs, outage minutes, tenant counts, and officer r
 import re
 from typing import Dict, List, Any, Optional
 import pandas as pd
-try:
-    import fitz  # Standard PyMuPDF
-except Exception:
-    try:
-        import pymupdf as fitz
-    except Exception:
-        fitz = None
+
 
 
 class OutageParser:
@@ -29,6 +23,14 @@ class OutageParser:
         """
         Parse Outage Sign-Off sheets across all pages of a PDF.
         """
+        try:
+            import fitz
+        except Exception:
+            try:
+                import pymupdf as fitz
+            except Exception:
+                fitz = None
+
         if fitz is None:
             raise ImportError("PyMuPDF is not properly installed. Please run: pip install PyMuPDF==1.24.14")
         doc = fitz.open(pdf_path)

@@ -4,3 +4,6 @@ __pycache__/
 scratch/
 temp_*
 .gemini/
+*.rar
+master_infra_data/EDIL_P&F_checklist_25-26.xlsx
+
