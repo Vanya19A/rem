@@ -981,8 +981,13 @@ with tab_outage:
                 else:
                     display_out[col] = display_out[col].fillna("").astype(str)
 
-            # Sort with highest downtime first
-            display_out = display_out.sort_values(by="Downtime (Hours)", ascending=False)
+            # Sort by downtime descending only for downtime-specific view; keep original numerical order for all sites
+            if outage_filter_status == "⚡ Sites with Downtime (> 0 Hrs)":
+                display_out = display_out.sort_values(by="Downtime (Hours)", ascending=False)
+
+            # Clean 1-based sequential numerical order
+            display_out = display_out.reset_index(drop=True)
+            display_out.index = display_out.index + 1
 
             st.dataframe(
                 display_out.style.format({
