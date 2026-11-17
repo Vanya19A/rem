@@ -39,13 +39,13 @@ class ERPREMGenerator:
         cls,
         invoice_no: str,
         sites: List[Dict[str, Any]],
-        bill_type: str = "ENERGY", # "ENERGY", "RENT", or "LLR"
-        circle_code: str = "MP",
+        bill_type: str = "RENT", # "ENERGY", "RENT", or "LLR"
+        circle_code: str = "GJ",
         company_code: int = 1100,
-        business_entity: str = "23400000",
+        business_entity: str = "16400000",
         vendor_no: str = "2004755",
-        from_date: str = "01.02.2026",
-        to_date: str = "28.02.2026"
+        from_date: str = "01.04.2026",
+        to_date: str = "30.04.2026"
     ) -> bytes:
         """
         Creates INVOICE UPLOAD excel matching official BSNL REM template:
@@ -118,10 +118,10 @@ class ERPREMGenerator:
             if not c_no:
                 # Fallback to pseudo-contract if missing
                 gid = str(site.get("global_id", site.get("Global ID", "")))
-                c_no = int(f"2353000{gid.zfill(6)}") if gid.isdigit() else 2353000000000 + idx
+                c_no = int(f"1653000{gid.zfill(6)}") if gid.isdigit() else 1653000000000 + idx
             else:
                 try:
-                    c_no = int(c_no)
+                    c_no = int(float(c_no))
                 except:
                     pass
 
@@ -131,6 +131,11 @@ class ERPREMGenerator:
                     rental_obj = 50000000 + (int(str(c_no)[-5:]) if str(c_no).isdigit() else idx)
                 except:
                     rental_obj = 50000000 + idx
+            else:
+                try:
+                    rental_obj = int(float(rental_obj))
+                except:
+                    pass
 
             site_name = site.get("site_name") or site.get("Site Name", "")
             rental_obj_name = f"Lease-In-Slot No-1/GSM/IP/{site_name}" if site_name else None
@@ -140,11 +145,11 @@ class ERPREMGenerator:
             ground_rent = 0.0
             eb_charges = 0.0
             dg_charges = 0.0
-            outage_pen = float(site.get("outage_penalty", site.get("Outage Penalty (₹)", 0.0)) or 0.0)
+            outage_pen = float(site.get("outage_penalty", site.get("Outage Penalty (₹)", site.get("Deduction Outage (₹)", 0.0))) or 0.0)
 
             if bill_type == "RENT":
                 passive_rent = float(site.get("approved_rent", site.get("Net Approved (₹)", site.get("Base Passed (₹)", 0.0))) or 0.0)
-                tot_site = passive_rent
+                tot_site = round(passive_rent - outage_pen, 2)
             elif bill_type == "LLR":
                 ground_rent = float(site.get("ground_rent", site.get("Approved Landlord Rent", site.get("Net Approved (₹)", 0.0))) or 0.0)
                 tot_site = ground_rent
@@ -169,7 +174,7 @@ class ERPREMGenerator:
                 rental_obj,
                 rental_obj_name,
                 int(vendor_no) if str(vendor_no).isdigit() else vendor_no,
-                str(invoice_no),
+                str(site.get("invoice_no") or invoice_no),
                 from_date,
                 to_date,
                 site_name,
@@ -223,11 +228,11 @@ class ERPREMGenerator:
         cls,
         invoice_no: str,
         sites: List[Dict[str, Any]],
-        circle_code: str = "MP",
+        circle_code: str = "GJ",
         company_code: int = 1100,
         vendor_no: str = "2004755",
-        invoice_date: str = "05.03.2026",
-        period: int = 11,
+        invoice_date: str = "05.05.2026",
+        period: int = 1,
         fiscal_year: int = 2026
     ) -> bytes:
         """
@@ -275,10 +280,10 @@ class ERPREMGenerator:
             c_no = site.get("contract_no") or site.get("Contract Number") or site.get("REM Contract No")
             if not c_no:
                 gid = str(site.get("global_id", site.get("Global ID", "")))
-                c_no = int(f"2353000{gid.zfill(6)}") if gid.isdigit() else 2353000000000 + idx
+                c_no = int(f"1653000{gid.zfill(6)}") if gid.isdigit() else 1653000000000 + idx
             else:
                 try:
-                    c_no = int(c_no)
+                    c_no = int(float(c_no))
                 except:
                     pass
 
@@ -289,7 +294,7 @@ class ERPREMGenerator:
                 int(period),
                 int(fiscal_year),
                 1,
-                str(invoice_no),
+                str(site.get("invoice_no") or invoice_no),
                 str(invoice_date)
             ]
 
@@ -313,11 +318,11 @@ class ERPREMGenerator:
     def generate_condition_upload(
         cls,
         sites: List[Dict[str, Any]],
-        bill_type: str = "ENERGY", # "ENERGY", "RENT", or "LLR"
-        circle_code: str = "MP",
+        bill_type: str = "RENT", # "ENERGY", "RENT", or "LLR"
+        circle_code: str = "GJ",
         company_code: int = 1100,
-        from_date: str = "01.02.2026",
-        to_date: str = "28.02.2026"
+        from_date: str = "01.04.2026",
+        to_date: str = "30.04.2026"
     ) -> bytes:
         """
         Creates CONDITION UPLOAD excel matching official BSNL REM template:
@@ -366,10 +371,10 @@ class ERPREMGenerator:
             c_no = site.get("contract_no") or site.get("Contract Number") or site.get("REM Contract No")
             if not c_no:
                 gid = str(site.get("global_id", site.get("Global ID", "")))
-                c_no = int(f"2353000{gid.zfill(6)}") if gid.isdigit() else 2353000000000 + idx
+                c_no = int(f"1653000{gid.zfill(6)}") if gid.isdigit() else 1653000000000 + idx
             else:
                 try:
-                    c_no = int(c_no)
+                    c_no = int(float(c_no))
                 except:
                     pass
 
@@ -437,15 +442,15 @@ class ERPREMGenerator:
         cls,
         invoice_no: str,
         sites: List[Dict[str, Any]],
-        bill_type: str = "ENERGY", # "ENERGY", "RENT", or "LLR"
-        circle_code: str = "MP",
+        bill_type: str = "RENT", # "ENERGY", "RENT", or "LLR"
+        circle_code: str = "GJ",
         company_code: int = 1100,
-        business_entity: str = "23400000",
+        business_entity: str = "16400000",
         vendor_no: str = "2004755",
-        invoice_date: str = "05.03.2026",
-        from_date: str = "01.02.2026",
-        to_date: str = "28.02.2026",
-        period: int = 11,
+        invoice_date: str = "05.05.2026",
+        from_date: str = "01.04.2026",
+        to_date: str = "30.04.2026",
+        period: int = 1,
         fiscal_year: int = 2026
     ) -> bytes:
         """

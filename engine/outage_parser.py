@@ -174,9 +174,12 @@ class OutageParser:
                         if not row_str:
                             continue
 
-                        m_ssa = re.search(r'Name of SSA\s*:\s*([^,:\n]+)', row_str, re.I)
+                        m_ssa = re.search(r'Name of SSA\s*:\s*(.*?)(?=\s+Month|\s*$|,|:)', row_str, re.I)
                         if m_ssa:
-                            current_ssa = m_ssa.group(1).strip()
+                            s_val = m_ssa.group(1).strip(' -:')
+                            s_val = re.split(r'Name of SSA|Month', s_val, flags=re.I)[0].strip(' -:')
+                            if s_val:
+                                current_ssa = s_val
                         m_month = re.search(r'Month\s*[:-]?\s*([^,:\n]+)', row_str, re.I)
                         if m_month:
                             current_month = m_month.group(1).strip()
@@ -201,13 +204,13 @@ class OutageParser:
                                     col_map["down_from"] = c_idx
                                 elif "down to" in v_clean:
                                     col_map["down_to"] = c_idx
-                                elif "duration" in v_clean:
+                                elif "duration" in v_clean and "ac" not in v_clean and "fault" not in v_clean:
                                     col_map["duration"] = c_idx
-                                elif "fault reason" in v_clean or "reason" in v_clean:
+                                elif "fault reason" in v_clean or ("reason" in v_clean and "ac" not in v_clean):
                                     col_map["fault_reason"] = c_idx
                                 elif "ac status" in v_clean:
                                     col_map["ac_status"] = c_idx
-                                elif "ac remark" in v_clean:
+                                elif "ac remark" in v_clean or ("fault" in v_clean and "days" in v_clean):
                                     col_map["ac_remark"] = c_idx
                                 elif "remark" in v_clean and "ac" not in v_clean:
                                     col_map["remarks"] = c_idx
@@ -223,9 +226,23 @@ class OutageParser:
                                     in_table = False
                                 continue
 
-                            dur_raw = row.values[col_map["duration"]] if "duration" in col_map and col_map["duration"] < len(row.values) else "0"
+                            dur_raw = row.values[col_map["duration"]] if "duration" in col_map and col_map["duration"] < len(row.values) else 0.0
                             dur_hrs = cls._parse_duration_val(dur_raw)
                             dur_mins = dur_hrs * 60.0
+
+                            id_od = str(row.values[col_map["id_od"]]).strip() if "id_od" in col_map and col_map["id_od"] < len(row.values) else ""
+                            raw_ac = str(row.values[col_map["ac_status"]]).strip() if "ac_status" in col_map and col_map["ac_status"] < len(row.values) else ""
+                            if raw_ac.upper() in ["NAN", "NONE", "", "NULL"]:
+                                ac_stat = "NA (OD Site)" if id_od.upper() == "OD" else "NA"
+                            else:
+                                ac_stat = raw_ac
+
+                            raw_fault = str(row.values[col_map["fault_reason"]]).strip() if "fault_reason" in col_map and col_map["fault_reason"] < len(row.values) else ""
+                            fault_stat = "" if raw_fault.upper() in ["NAN", "NONE", "NIL"] else raw_fault
+
+                            raw_rem = str(row.values[col_map["remarks"]]).strip() if "remarks" in col_map and col_map["remarks"] < len(row.values) else ""
+                            if raw_rem.upper() in ["NAN", "NONE", "NIL"]:
+                                raw_rem = ""
 
                             rec = {
                                 "operator": current_ip,
@@ -239,9 +256,9 @@ class OutageParser:
                                 "outage_minutes": round(dur_mins, 2),
                                 "vendor_site_id": ip_str,
                                 "bsnl_site_id": str(row.values[col_map["omcr_id"]]).strip() if "omcr_id" in col_map and col_map["omcr_id"] < len(row.values) else "",
-                                "fault_reason": str(row.values[col_map["fault_reason"]]).strip() if "fault_reason" in col_map and col_map["fault_reason"] < len(row.values) else "",
-                                "ac_status": str(row.values[col_map["ac_status"]]).strip() if "ac_status" in col_map and col_map["ac_status"] < len(row.values) else "",
-                                "officer_remarks": str(row.values[col_map["remarks"]]).strip() if "remarks" in col_map and col_map["remarks"] < len(row.values) else ""
+                                "fault_reason": fault_stat,
+                                "ac_status": ac_stat,
+                                "officer_remarks": raw_rem
                             }
                             records.append(rec)
                 if records:
@@ -330,16 +347,32 @@ class OutageParser:
 
     @classmethod
     def _parse_duration_val(cls, val_str) -> float:
-        if not val_str or str(val_str).strip().upper() in ['NIL', 'NA', 'N/A', '-', '']:
+        import datetime
+        if val_str is None or pd.isna(val_str):
             return 0.0
+        if isinstance(val_str, (int, float)):
+            return float(val_str)
+        if isinstance(val_str, datetime.time):
+            return val_str.hour + val_str.minute / 60.0 + val_str.second / 3600.0
+        if isinstance(val_str, datetime.datetime):
+            d_hrs = (val_str.day * 24.0) if val_str.year == 1900 else 0.0
+            return d_hrs + val_str.hour + val_str.minute / 60.0 + val_str.second / 3600.0
         s = str(val_str).strip()
-        m_hm = re.search(r'(\d+)\s*(?:hrs|hr|hours)?\s*(\d+)?\s*(?:min|minutes|mins)?', s, re.I)
+        if s.upper() in ['NIL', 'NA', 'N/A', '-', '0', '', 'NONE', 'NAN']:
+            return 0.0
+        m_colon = re.match(r'^(\d+):(\d+)(?::(\d+))?$', s)
+        if m_colon:
+            h = float(m_colon.group(1))
+            m = float(m_colon.group(2))
+            sec = float(m_colon.group(3)) if m_colon.group(3) else 0.0
+            return h + m / 60.0 + sec / 3600.0
+        m_h = re.search(r'(\d+(?:\.\d+)?)\s*(?:hrs?|hours?)', s, re.I)
+        m_m = re.search(r'(\d+(?:\.\d+)?)\s*(?:mins?|minutes?)', s, re.I)
+        if m_h or m_m:
+            h = float(m_h.group(1)) if m_h else 0.0
+            m = float(m_m.group(1)) if m_m else 0.0
+            return h + m / 60.0
         try:
             return float(s)
         except:
-            pass
-        if m_hm:
-            h = float(m_hm.group(1)) if m_hm.group(1) else 0.0
-            m = float(m_hm.group(2)) if m_hm.group(2) else 0.0
-            return h + m / 60.0
-        return 0.0
+            return 0.0

@@ -942,11 +942,38 @@ with tab_outage:
 
             st.caption(f"Showing {len(view_out)} of {len(df_out)} recorded outage events across Gujarat Circle")
 
-            for col in view_out.columns:
-                if view_out[col].dtype == object:
-                    view_out[col] = view_out[col].fillna("").astype(str)
+            # Clean display columns for Outage Table
+            display_out = view_out.copy()
+            rename_map = {
+                "ssa": "SSA",
+                "operator": "IP Operator",
+                "duration_hours": "Downtime (Hours)",
+                "outage_minutes": "Downtime (Mins)",
+                "fault_reason": "Fault Reason",
+                "ac_status": "AC Status",
+                "officer_remarks": "Officer Remarks"
+            }
+            display_out = display_out.rename(columns=rename_map)
+            cols_order = [
+                c for c in ["SSA", "IP Operator", "IP ID", "OMCR ID", "Site Name", "Downtime (Hours)", "Downtime (Mins)", "Fault Reason", "AC Status", "Officer Remarks"]
+                if c in display_out.columns
+            ]
+            display_out = display_out[cols_order]
 
-            st.dataframe(view_out, use_container_width=True, height=450)
+            for col in display_out.columns:
+                if col in ["Downtime (Hours)", "Downtime (Mins)"]:
+                    display_out[col] = pd.to_numeric(display_out[col], errors="coerce").fillna(0.0)
+                else:
+                    display_out[col] = display_out[col].fillna("").astype(str)
+
+            st.dataframe(
+                display_out.style.format({
+                    "Downtime (Hours)": "{:.2f}",
+                    "Downtime (Mins)": "{:.1f}"
+                }),
+                use_container_width=True,
+                height=450
+            )
 
 
 # ----------------- TAB 6: BSNL SAP REM ERP UPLOAD GENERATOR -----------------
@@ -977,20 +1004,38 @@ with tab_rem:
             rent_fy_period = ERPREMGenerator.get_fy_period(month_selected)
             rent_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
             rent_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
+            next_m = 1 if m_num == 12 else m_num + 1
+            next_y = y_num + 1 if m_num == 12 else y_num
+            rent_inv_dt = f"05.{str(next_m).zfill(2)}.{next_y}"
+
+            def clean_int_str(val):
+                if pd.isna(val) or val is None:
+                    return ""
+                try:
+                    return str(int(float(val)))
+                except:
+                    return str(val).strip()
 
             gj_site_records = []
             for _, r in df_rem_sites.iterrows():
-                c_no = r.get("ISA")
-                if pd.isna(c_no):
-                    c_no = f"2353000{str(r.get('GLOBAL_SITE_ID', r.get('IP ID', '')))[:6]}"
+                c_no = clean_int_str(r.get("ISA"))
+                if not c_no:
+                    gid = clean_int_str(r.get("GLOBAL_SITE_ID", ""))
+                    c_no = f"1653000{gid.zfill(6)}" if gid else "1653000000001"
+                ro_no = clean_int_str(r.get("RO"))
+                inv_no = clean_int_str(r.get("Invoice no"))
+                app_rent = float(r.get("Net Approved (₹)", r.get("Total IP Fee", 0.0)) or 0.0)
+                out_pen = float(r.get("Deduction Outage (₹)", 0.0) or 0.0)
+
                 gj_site_records.append({
-                    "contract_no": str(c_no).split('.')[0].strip(),
-                    "rental_object_no": str(r.get("RO", "")).split('.')[0].strip() if pd.notna(r.get("RO")) else None,
+                    "contract_no": c_no,
+                    "rental_object_no": ro_no if ro_no else None,
                     "site_name": str(r.get("Site Name", "")),
-                    "approved_rent": float(r.get("Total IP Fee", 0.0) or 0.0),
+                    "approved_rent": app_rent,
                     "ground_rent": 0.0,
-                    "outage_penalty": 0.0,
-                    "base_passed": float(r.get("Total IP Fee", 0.0) or 0.0)
+                    "outage_penalty": out_pen,
+                    "base_passed": app_rent,
+                    "invoice_no": inv_no
                 })
 
             st.markdown("#### 📥 Download BSNL ERP REM Upload Spreadsheets")
@@ -1004,6 +1049,7 @@ with tab_rem:
                     vendor_no=rent_vendor_no,
                     period=rent_fy_period,
                     fiscal_year=y_num,
+                    invoice_date=rent_inv_dt,
                     from_date=rent_f_dt,
                     to_date=rent_t_dt
                 )
@@ -1040,6 +1086,7 @@ with tab_rem:
                     sites=gj_site_records,
                     circle_code=rent_circle_code,
                     vendor_no=rent_vendor_no,
+                    invoice_date=rent_inv_dt,
                     period=rent_fy_period,
                     fiscal_year=y_num
                 )
