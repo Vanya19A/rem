@@ -75,11 +75,12 @@ class MasterInfraManager:
         if vendor == "Elevar Digitel (ATC)" and circle == "Madhya Pradesh" and month == "FEB" and str(year) == "2026":
             return True
 
-        # Elevar Digitel in Gujarat (APR, MAY, JUN 2026)
+        # Elevar Digitel in Gujarat (APR, MAY, JUN, MAR 2026)
         if vendor == "Elevar Digitel (ATC)" and circle == "Gujarat" and str(year) == "2026":
-            if month in ["APR", "MAY", "JUN"]:
-                fpath = os.path.join(cls.get_master_dir(), "1_ATC_GJ_IPF_2026-27_Main.xlsx")
-                return os.path.exists(fpath)
+            if month in ["APR", "MAY", "JUN", "MAR"]:
+                fpath_new = os.path.join(cls.get_master_dir(), "Copy_of_IP_Fees_console_April_26_VENDORE_SUBMITTED_BSNL.xlsx")
+                fpath_main = os.path.join(cls.get_master_dir(), "1_ATC_GJ_IPF_2026-27_Main.xlsx")
+                return os.path.exists(fpath_new) or os.path.exists(fpath_main)
 
         return False
 
@@ -100,6 +101,93 @@ class MasterInfraManager:
         Parses Gujarat ATC master file for the requested month.
         Returns master sites DataFrame, invoice summary DataFrame, and per-invoice site DataFrames.
         """
+        # Check if the new April 2026 vendor submitted invoice is present
+        new_apr_path = os.path.join(cls.get_master_dir(), "Copy_of_IP_Fees_console_April_26_VENDORE_SUBMITTED_BSNL.xlsx")
+        if month_str.upper()[:3] == "APR" and os.path.exists(new_apr_path):
+            try:
+                df_main = pd.read_excel(new_apr_path, sheet_name="April'26 (2)", header=3)
+                id_col = next((c for c in df_main.columns if "GLOBAL_SITE_ID" in str(c) or "Site ID" in str(c)), df_main.columns[1])
+                valid_df = df_main[df_main[id_col].notna()].copy()
+                valid_df = valid_df[~valid_df[id_col].astype(str).str.upper().str.contains("TOTAL|SUB|GRAND", na=False)]
+
+                if "Total Billing" in valid_df.columns:
+                    valid_df["Total IP Fee"] = pd.to_numeric(valid_df["Total Billing"], errors="coerce").fillna(0.0)
+                if "Total Amount after Tax" in valid_df.columns:
+                    valid_df["IP Claim with GST"] = pd.to_numeric(valid_df["Total Amount after Tax"], errors="coerce").fillna(0.0)
+                if "Diff" not in valid_df.columns:
+                    valid_df["Diff"] = 0.0
+
+                inv_col = next((c for c in valid_df.columns if "Invoice no" in str(c) or "Invoice" in str(c)), None)
+                distinct_invoices = []
+                if inv_col:
+                    for x in valid_df[inv_col].dropna().unique():
+                        inv_str = str(x).split('.')[0].strip()
+                        if inv_str and inv_str.isdigit() and len(inv_str) >= 8:
+                            distinct_invoices.append(inv_str)
+
+                inv_summary_list = []
+                inv_site_dfs = {}
+                for inv_no in distinct_invoices:
+                    idf = valid_df[valid_df[inv_col].astype(str).str.contains(str(inv_no), na=False)].copy() if inv_col else pd.DataFrame()
+                    site_cnt = len(idf)
+                    tot_passed = float(idf["Total IP Fee"].sum()) if "Total IP Fee" in idf.columns else 0.0
+                    tot_claim = float(idf["IP Claim with GST"].sum()) if "IP Claim with GST" in idf.columns else (tot_passed * 1.18)
+                    tot_diff = float(idf["Diff"].sum()) if "Diff" in idf.columns else 0.0
+                    inv_summary_list.append({
+                        "Invoice No": str(inv_no),
+                        "Sites Count": site_cnt,
+                        "BSNL Passed Excl. GST (₹)": round(tot_passed, 2),
+                        "Vendor Claimed With GST (₹)": round(tot_claim, 2),
+                        "Total Deduction / Diff (₹)": round(tot_diff, 2),
+                        "GST @ 18% (₹)": round(tot_passed * 0.18, 2),
+                        "Net Payable Incl. GST (₹)": round(tot_passed * 1.18, 2)
+                    })
+                    inv_site_dfs[str(inv_no)] = idf
+
+                summary_df = pd.DataFrame(inv_summary_list) if inv_summary_list else pd.DataFrame()
+
+                total_sites = len(valid_df)
+                total_passed = float(valid_df["Total IP Fee"].sum()) if "Total IP Fee" in valid_df.columns else 0.0
+                total_claimed = float(valid_df["IP Claim with GST"].sum()) if "IP Claim with GST" in valid_df.columns else (total_passed * 1.18)
+                total_diff = float(valid_df["Diff"].sum()) if "Diff" in valid_df.columns else 0.0
+
+                # Penalties
+                penalties_df = pd.DataFrame()
+                try:
+                    penalties_df = pd.read_excel(new_apr_path, sheet_name="Sheet1")
+                except Exception:
+                    pass
+
+                # Outages
+                outage_df = pd.DataFrame()
+                outage_path = os.path.join(cls.get_master_dir(), "All_IP_sites_DT_AC_MR_report_APR-26xls.xls")
+                if os.path.exists(outage_path):
+                    try:
+                        from engine.outage_parser import OutageParser
+                        outage_df = OutageParser.parse_multi_block_outage(outage_path)
+                    except Exception:
+                        pass
+
+                return {
+                    "month_str": month_str,
+                    "sheet_name": "April'26 (2)",
+                    "total_sites": total_sites,
+                    "total_passed": total_passed,
+                    "total_claimed": total_claimed,
+                    "total_diff": total_diff,
+                    "sites_df": valid_df,
+                    "invoices_summary_df": summary_df,
+                    "distinct_invoices": distinct_invoices,
+                    "inv_site_dfs": inv_site_dfs,
+                    "penalties_df": penalties_df,
+                    "outage_df": outage_df,
+                    "is_new_april_console": True,
+                    "month": month_str,
+                    "year": year_str,
+                }
+            except Exception as e:
+                pass
+
         fpath = os.path.join(cls.get_master_dir(), "1_ATC_GJ_IPF_2026-27_Main.xlsx")
         if not os.path.exists(fpath):
             return {}

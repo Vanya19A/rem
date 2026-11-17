@@ -76,9 +76,9 @@ def init_session():
     if "sidebar_vendor" not in st.session_state:
         st.session_state["sidebar_vendor"] = "Elevar Digitel (ATC)"
     if "sidebar_circle" not in st.session_state:
-        st.session_state["sidebar_circle"] = "Madhya Pradesh"
+        st.session_state["sidebar_circle"] = "Gujarat"
     if "sidebar_month" not in st.session_state:
-        st.session_state["sidebar_month"] = "FEB"
+        st.session_state["sidebar_month"] = "APR"
     if "sidebar_year" not in st.session_state:
         st.session_state["sidebar_year"] = "2026"
     if "custom_dataset_loaded" not in st.session_state:
@@ -294,8 +294,8 @@ st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Bhar
 st.sidebar.title("Audit Configuration")
 
 vendor_options = ["Elevar Digitel (ATC)", "Indus Towers", "Ascend Telecom", "Tower Vision", "GTL Infrastructure", "Summit Digitel", "Suyog Telematics", "RailTel", "Reliance Infratel (RITL / RIL)", "Crest Digitel (IBS)"]
-circle_options = ["Madhya Pradesh", "Chhattisgarh", "Maharashtra", "Gujarat", "Rajasthan", "Uttar Pradesh"]
-month_options = ["FEB", "JAN", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+circle_options = ["Gujarat", "Maharashtra", "Rajasthan", "Madhya Pradesh", "Chhattisgarh", "Uttar Pradesh"]
+month_options = ["APR", "MAY", "JUN", "MAR", "FEB", "JAN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 year_options = ["2026", "2025", "2024"]
 
 vendor_selected = st.sidebar.selectbox("IP Vendor", vendor_options, key="sidebar_vendor")
@@ -348,23 +348,16 @@ def render_no_data_banner(data_type, vendor, circle, month, year):
     </div>
     """, unsafe_allow_html=True)
 
-    col_b1, col_b2, col_b3 = st.columns([1.5, 1.5, 2])
+    col_b1, col_b2 = st.columns([1.5, 2.5])
     with col_b1:
-        if st.button("⚡ Switch to MP Batch (FEB-2026)", key=f"quick_mp_{data_type}"):
-            st.session_state["sidebar_vendor"] = "Elevar Digitel (ATC)"
-            st.session_state["sidebar_circle"] = "Madhya Pradesh"
-            st.session_state["sidebar_month"] = "FEB"
-            st.session_state["sidebar_year"] = "2026"
-            st.rerun()
-    with col_b2:
         if st.button("⚡ Switch to Gujarat Batch (APR-2026)", key=f"quick_gj_{data_type}"):
             st.session_state["sidebar_vendor"] = "Elevar Digitel (ATC)"
             st.session_state["sidebar_circle"] = "Gujarat"
             st.session_state["sidebar_month"] = "APR"
             st.session_state["sidebar_year"] = "2026"
             st.rerun()
-    with col_b3:
-        st.info(f"💡 You can review **{vendor}**'s contractual MSA rules, rate cards, and circular amendments in **Tab 10: 📜 MSA Rules & Circular Amendments**.")
+    with col_b2:
+        st.info(f"💡 You can review **{vendor}**'s contractual MSA rules, rate cards, and circular amendments in **Tab 7: 📜 MSA Rules & Circular Amendments**.")
 
 @st.cache_data
 def load_contract_mapping():
@@ -436,19 +429,16 @@ def load_contract_mapping():
 st.markdown('<div class="main-title">📡 BSNL Telecom Infrastructure (IP-1) Billing & SLA Reconciliation System</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="sub-title">Circle: <b>{circle_selected}</b> | Vendor: <b>{vendor_selected}</b> | Period: <b>{month_selected}-{year_selected} ({days_in_month} Days)</b></div>', unsafe_allow_html=True)
 
-# Main Navigation Tabs - Upload is prominently FIRST, preserving all existing tabs and adding Rent and MSA Sections
-tab_upload, tab_summary, tab_rent, tab_inv1, tab_inv2, tab_inv3, tab_inv4, tab_inv5, tab_outage, tab_msa, tab_export = st.tabs([
-    "📂 1. Upload & Ingestion",
-    "📊 2. Executive Summary (Electricity)",
-    "🏢 3. IP Tower Rent Audit",
-    "📄 Inv 1 (100 Sites)",
-    "📄 Inv 2 (85 Sites)",
-    "📄 Inv 3 (99 Sites)",
-    "📄 Inv 4 (100 Sites)",
-    "📄 Inv 5 (100 Sites)",
-    "⚡ Outage & SLA Log",
-    "📜 MSA Rules & Circular Amendments",
-    "📥 Download Master Excel"
+# Main Navigation Tabs - Focused on Gujarat Circle
+tab_upload, tab_console, tab_sites, tab_penalties, tab_outage, tab_rem, tab_msa, tab_export = st.tabs([
+    "📂 1. Ingestion & Master DB",
+    "📊 2. Gujarat Master Invoices Console",
+    "🔍 3. Site-by-Site Leased Sites Audit",
+    "⚠️ 4. Deployment Delay Penalties",
+    "⚡ 5. Master Outage & AC Downtime Sign-Off",
+    "🏛️ 6. BSNL SAP REM ERP Generator",
+    "📜 7. MSA Rules & Circular Amendments",
+    "📥 8. Download Master Audit Workbooks"
 ])
 
 # ----------------- TAB 1: UPLOAD & INGESTION -----------------
@@ -497,12 +487,12 @@ with tab_upload:
         run_process = st.button("🚀 Run Automated Audit & Reconcile", type="primary", use_container_width=True)
 
     with col_btn_demo:
-        load_demo = st.button("⚡ Reset / Reload Current Processed Package (February 2026 - 484 Sites)", use_container_width=True)
+        load_demo = st.button("⚡ Reset / Reload Primary Gujarat Package (April 2026 — 524 Sites)", use_container_width=True)
 
     # Process Uploaded Files
     if run_process:
-        if not uploaded_invoice and not os.path.exists("BSNL_5_Invoices_Reconciliation_Output.xlsx"):
-            st.error("Please upload at least the Vendor Invoice file to run reconciliation.")
+        if not uploaded_invoice:
+            st.error("Please upload a Vendor Invoice file or select a period from the sidebar.")
         else:
             with st.spinner("Analyzing invoices, parsing site annexures, and matching outage sign-off certificates..."):
                 try:
@@ -562,15 +552,14 @@ with tab_upload:
                     st.error(f"Error during reconciliation: {str(e)}")
 
     if load_demo:
-        with st.spinner("Reloading February-2026 master dataset..."):
-            os.system("python generate_5_invoices_reconciliation.py")
+        with st.spinner("Reloading Gujarat April-2026 master dataset..."):
             init_session()
             st.session_state["custom_dataset_loaded"] = False
             st.session_state["sidebar_vendor"] = "Elevar Digitel (ATC)"
-            st.session_state["sidebar_circle"] = "Madhya Pradesh"
-            st.session_state["sidebar_month"] = "FEB"
+            st.session_state["sidebar_circle"] = "Gujarat"
+            st.session_state["sidebar_month"] = "APR"
             st.session_state["sidebar_year"] = "2026"
-            st.success("Loaded February-2026 reconciliation package with all 5 invoices and 484 sites!")
+            st.success("Loaded Gujarat April-2026 reconciliation package with all 524 sites and 8 invoices!")
             st.rerun()
 
     # ----------------- SECTION: MASTER INFRA SITE DATABASE & OPERATOR FILE MANAGER -----------------
@@ -656,748 +645,361 @@ with tab_upload:
                     )
 
 
-# ----------------- TAB 2: EXECUTIVE SUMMARY (ELECTRICITY / P&F) -----------------
-with tab_summary:
-    st.subheader(f"Summary of Energy (P&F) Invoices & SLA Reconciliation — {vendor_selected} ({month_selected}-{year_selected})")
+# ----------------- TAB 2: GUJARAT MASTER INVOICES CONSOLE -----------------
+with tab_console:
+    st.subheader(f"📊 Gujarat Circle IP Fee & Vendor Invoices Master Console — {vendor_selected} ({month_selected}-{year_selected})")
+    st.write("Comprehensive billing console for monthly fixed infrastructure rental fees, 4G BBU/RRU additions, tenancy rate verification, and invoice-by-invoice reconciliation.")
 
     if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
-        render_no_data_banner("Energy (Electricity / P&F)", vendor_selected, circle_selected, month_selected, year_selected)
+        render_no_data_banner("Gujarat Master Invoices", vendor_selected, circle_selected, month_selected, year_selected)
     else:
-        summary_data = [
-            {"S.No": "1", "Invoice No": "607239111046515", "PDF Pages": "Pages 1-5", "Sites Count": 100, "Claimed Excl. GST (₹)": 984641.43, "BSNL Base Passed (₹)": 904670.02, "Outage Penalty (₹)": 8125.33, "Net Approved Excl. GST (₹)": 896544.68, "Total Deduction (₹)": 88096.74, "GST @18% (₹)": 161378.04, "Net Payable With GST (₹)": 1057922.73},
-            {"S.No": "2", "Invoice No": "607239111046516", "PDF Pages": "Pages 6-9", "Sites Count": 85, "Claimed Excl. GST (₹)": 1084396.32, "BSNL Base Passed (₹)": 917500.27, "Outage Penalty (₹)": 25453.33, "Net Approved Excl. GST (₹)": 892221.22, "Total Deduction (₹)": 192175.10, "GST @18% (₹)": 160599.82, "Net Payable With GST (₹)": 1052821.04},
-            {"S.No": "3", "Invoice No": "607239111046519", "PDF Pages": "Pages 10-14", "Sites Count": 99, "Claimed Excl. GST (₹)": 1005932.16, "BSNL Base Passed (₹)": 928403.93, "Outage Penalty (₹)": 2461.33, "Net Approved Excl. GST (₹)": 925942.60, "Total Deduction (₹)": 79989.56, "GST @18% (₹)": 166669.67, "Net Payable With GST (₹)": 1092612.27},
-            {"S.No": "4", "Invoice No": "607239111046520", "PDF Pages": "Pages 15-19", "Sites Count": 100, "Claimed Excl. GST (₹)": 1056601.95, "BSNL Base Passed (₹)": 978493.10, "Outage Penalty (₹)": 34836.33, "Net Approved Excl. GST (₹)": 947194.18, "Total Deduction (₹)": 109407.77, "GST @18% (₹)": 170494.95, "Net Payable With GST (₹)": 1117689.13},
-            {"S.No": "5", "Invoice No": "607239111046533", "PDF Pages": "Pages 20-24", "Sites Count": 100, "Claimed Excl. GST (₹)": 1015274.92, "BSNL Base Passed (₹)": 931992.91, "Outage Penalty (₹)": 17575.33, "Net Approved Excl. GST (₹)": 914417.58, "Total Deduction (₹)": 100857.34, "GST @18% (₹)": 164595.16, "Net Payable With GST (₹)": 1079012.74},
-        ]
-        df_sum = pd.DataFrame(summary_data)
-        df_sum["S.No"] = df_sum["S.No"].astype(str)
-
-        m1, m2, m3, m4, m5 = st.columns(5)
-        with m1:
-            st.metric("Total Sites", "484 Sites")
-        with m2:
-            st.metric("Total Claimed", "₹51,46,846.77")
-        with m3:
-            st.metric("BSNL Net Approved", "₹45,76,320.26", delta="-₹5,70,526.51", delta_color="inverse")
-        with m4:
-            st.metric("Outage SLA Penalties", "₹88,451.67")
-        with m5:
-            st.metric("Total Recovery / Debit Note", "₹5,70,526.51", delta="Credit Note Required")
-
-        st.markdown("---")
-        st.markdown("### 📋 Invoice-by-Invoice Reconciliation Matrix")
-        st.dataframe(
-            df_sum.style.format({
-                "Claimed Excl. GST (₹)": "₹{:,.2f}",
-                "BSNL Base Passed (₹)": "₹{:,.2f}",
-                "Outage Penalty (₹)": "₹{:,.2f}",
-                "Net Approved Excl. GST (₹)": "₹{:,.2f}",
-                "Total Deduction (₹)": "₹{:,.2f}",
-                "GST @18% (₹)": "₹{:,.2f}",
-                "Net Payable With GST (₹)": "₹{:,.2f}"
-            }),
-            use_container_width=True
-        )
-
-        st.markdown("---")
-        st.markdown("### 🏢 Key Audit Findings Across 484 Sites")
-        c_a, c_b = st.columns(2)
-        with c_a:
-            st.info("""
-            **Outage SLA Breaches (Pages 25-80 Outage Certificates):**
-            * **21 sites** had recorded downtime exceeding permissible 40.32 mins.
-            * **Shivpuri (Dhin Dayal Puram - GID 500882):** 2,016 minutes outage (33.6 hrs). Penalty capped at **₹10,000 max**.
-            * **Gwalior (Malanpur - GID 460877):** 1,872 minutes outage (31.2 hrs). Penalty **₹10,000 max**.
-            * **Guna (NFL - GID 558253):** 37 hours outage. Penalty **₹10,000 max**.
-            * **Itarsi (Sodalpur - GID 558178):** 601 minutes outage. Penalty **₹4,672.33**.
-            * **Guna (Myana - GID 460892):** 450 minutes outage. Penalty **₹3,414.00**.
-            * **Guna (Bajranggarh - GID 507156):** 420 minutes outage. Penalty **₹3,164.00**.
-            """)
-        with c_b:
-            st.warning("""
-            **Critical Handwritten Field Observations:**
-            * **RF Cable Theft:** 360m RF cable theft on Deendayalpuram (Shivpuri) on 03-Feb-2026.
-            * **Hardware Decommissioned:** Cat B Tejas BTS of Lahori power off on 07-Feb-2026, transported on 14-Feb-2026.
-            * **No BSNL Equipment Working:** Sikroda location (Morena) has zero BSNL equipment working.
-            * **Technology Down for Months:** Jangan Kolaras down >4 months; Maksi 2G/3G down since August 2025.
-            """)
-
-
-# ----------------- TAB 3: IP TOWER RENT AUDIT (NEW SECTION FOR RENT) -----------------
-with tab_rent:
-    st.subheader(f"🏢 IP Tower Rental Fee (Rent) Reconciliation & Disallowance Audit — {vendor_selected} ({month_selected}-{year_selected})")
-    st.write("Reconciliation of monthly fixed infrastructure fees, tenancy sharing rates, 4G BBU/RRU additions, and landlord rent caps.")
-
-    if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
-        render_no_data_banner("IP Tower Rental Fee (Rent)", vendor_selected, circle_selected, month_selected, year_selected)
-    else:
-        is_gujarat = (circle_selected == "Gujarat" and "Elevar" in vendor_selected)
-
-        if is_gujarat:
-            gj_data = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
-            if "error" in gj_data or gj_data.get("total_sites", 0) == 0:
-                st.error(f"Error loading Gujarat master data: {gj_data.get('error', 'No site records found')}")
-                clean_rent_file = ""
-            else:
-                df_rent_sites = gj_data["sites_df"].copy()
-                df_rent_miro = gj_data["invoices_summary_df"].copy()
-                tot_sites_rent = gj_data["total_sites"]
-                c_claim = gj_data["total_claimed"]
-                c_calc = gj_data["total_passed"]
-                c_app = gj_data["total_passed"]
-                c_ded = gj_data["total_diff"]
-                clean_rent_file = os.path.join(MasterInfraManager.get_master_dir(), "1_ATC_GJ_IPF_2026-27_Main.xlsx")
-
-                # Render KPI Metric Cards
-                r1, r2, r3, r4, r5 = st.columns(5)
-                with r1:
-                    st.metric("Total Leased Sites", f"{tot_sites_rent} Sites")
-                with r2:
-                    st.metric("Total Claimed Rent", f"₹{c_claim:,.2f}")
-                with r3:
-                    st.metric("BSNL Calculated Rent", f"₹{c_calc:,.2f}")
-                with r4:
-                    st.metric("Final Approved Rent", f"₹{c_app:,.2f}", delta=f"-₹{c_ded:,.2f}", delta_color="inverse")
-                with r5:
-                    st.metric("Total Rent Disallowance", f"₹{c_ded:,.2f}", delta="Credit Note Recovery")
-
-                st.markdown("---")
-
-                # Section 1: Invoices Summary
-                st.markdown("### 📋 Gujarat ATC Monthly IP Rental Invoices Summary")
-                if not df_rent_miro.empty:
-                    st.dataframe(df_rent_miro, use_container_width=True)
-
-                st.markdown("---")
-
-                # Section 2: Detailed Site-by-Site Rent Audit Table
-                st.markdown(f"### 🔍 Site-by-Site Tower Rental Audit (Gujarat — {month_selected}-{year_selected})")
-                f_r1, f_r2, f_r3 = st.columns([1, 1, 2])
-                with f_r1:
-                    ssa_choices = ["All"]
-                    if "SSA" in df_rent_sites.columns:
-                        ssa_choices += sorted([str(x) for x in df_rent_sites["SSA"].dropna().unique() if str(x) != "nan"])
-                    chosen_ssa = st.selectbox("Filter SSA", ssa_choices, key="rent_ssa_filter_gj")
-                with f_r2:
-                    disallow_filter = st.selectbox("Filter Disallowance", ["All Sites", "Only Deductions (> ₹0)", "Fully Passed"], key="rent_disallow_filter_gj")
-                with f_r3:
-                    rent_search = st.text_input("Search Site Name / IP ID / OMCR ID", "", key="rent_search_filter_gj")
-
-                view_rent_df = df_rent_sites.copy()
-                if chosen_ssa != "All" and "SSA" in view_rent_df.columns:
-                    view_rent_df = view_rent_df[view_rent_df["SSA"].astype(str) == chosen_ssa]
-
-                diff_col = next((c for c in view_rent_df.columns if "Diff" in str(c)), None)
-                if disallow_filter == "Only Deductions (> ₹0)" and diff_col:
-                    view_rent_df = view_rent_df[pd.to_numeric(view_rent_df[diff_col], errors="coerce").fillna(0) > 0]
-                elif disallow_filter == "Fully Passed" and diff_col:
-                    view_rent_df = view_rent_df[pd.to_numeric(view_rent_df[diff_col], errors="coerce").fillna(0) == 0]
-
-                if rent_search.strip():
-                    sq = rent_search.strip().lower()
-                    match_mask = pd.Series(False, index=view_rent_df.index)
-                    for sc in ["Site Name", "IP ID", "OMCR ID", "SSA", "ISA", "RO"]:
-                        if sc in view_rent_df.columns:
-                            match_mask = match_mask | view_rent_df[sc].astype(str).str.lower().str.contains(sq, na=False)
-                    view_rent_df = view_rent_df[match_mask]
-
-                st.caption(f"Showing {len(view_rent_df)} of {len(df_rent_sites)} sites in Gujarat IP Rental Audit")
-                for col in view_rent_df.columns:
-                    if view_rent_df[col].dtype == object:
-                        view_rent_df[col] = view_rent_df[col].fillna("").astype(str)
-
-                st.dataframe(view_rent_df, use_container_width=True, height=450)
-
-                # ERP REM Generator for Gujarat
-                with st.expander(f"📤 Generate BSNL ERP REM Upload Templates for Gujarat ATC ({len(df_rent_sites)} Sites)", expanded=False):
-                    st.markdown("#### 🏛️ SAP REM Module Bulk Upload Templates — Gujarat Circle (`GJ`)")
-                    st.caption("Generates the 3 official BSNL ERP upload files (`INVOICE UPLOAD`, `INVOICE detail UPLOAD`, and `CONDITION UPLOAD`) for Gujarat Circle.")
-
-                    r_col1, r_col2, r_col3 = st.columns(3)
-                    with r_col1:
-                        rent_stream_type = st.selectbox("Condition Stream", ["🏢 IP Tower Rent (T500)", "🏠 Ground / Landlord Rent (T630)"], key="rent_gj_stream")
-                    with r_col2:
-                        rent_vendor_no = st.text_input("Vendor Code", "2004755", key="rent_gj_vendor")
-                    with r_col3:
-                        rent_circle_code = st.text_input("Circle Code", "GJ", key="rent_gj_circle")
-
-                    rent_stream_code = "RENT" if "Tower Rent" in rent_stream_type else "LLR"
-                    rent_fy_period = ERPREMGenerator.get_fy_period(month_selected)
-                    rent_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
-                    rent_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
-
-                    gj_site_records = []
-                    for _, r in df_rent_sites.iterrows():
-                        c_no = r.get("ISA")
-                        if pd.isna(c_no):
-                            c_no = f"2353000{str(r.get('IP ID', ''))[-6:]}"
-                        gj_site_records.append({
-                            "contract_no": str(c_no).split('.')[0].strip(),
-                            "rental_object_no": str(r.get("RO", "")).split('.')[0].strip() if pd.notna(r.get("RO")) else None,
-                            "site_name": str(r.get("Site Name", "")),
-                            "approved_rent": float(r.get("Total IP Fee", 0.0) or 0.0),
-                            "ground_rent": 0.0,
-                            "outage_penalty": 0.0,
-                            "base_passed": float(r.get("Total IP Fee", 0.0) or 0.0)
-                        })
-
-                    r_zip_btn, r_b1, r_b2, r_b3 = st.columns([1.4, 1, 1, 1])
-                    with r_zip_btn:
-                        zip_rent_pkg = ERPREMGenerator.generate_all_3_templates_zip(
-                            invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
-                            sites=gj_site_records,
-                            bill_type=rent_stream_code,
-                            circle_code=rent_circle_code,
-                            vendor_no=rent_vendor_no,
-                            period=rent_fy_period,
-                            fiscal_year=y_num,
-                            from_date=rent_f_dt,
-                            to_date=rent_t_dt
-                        )
-                        st.download_button(
-                            label=f"📦 Complete Gujarat REM Package (.ZIP)",
-                            data=zip_rent_pkg,
-                            file_name=f"BSNL_REM_UPLOAD_{rent_circle_code}_{rent_stream_code}_{month_selected}{year_selected}.zip",
-                            mime="application/zip",
-                            type="primary",
-                            use_container_width=True,
-                            key="btn_zip_rent_gj"
-                        )
-                    with r_b1:
-                        inv_rent_bytes = ERPREMGenerator.generate_invoice_upload(
-                            invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
-                            sites=gj_site_records,
-                            bill_type=rent_stream_code,
-                            circle_code=rent_circle_code,
-                            vendor_no=rent_vendor_no,
-                            from_date=rent_f_dt,
-                            to_date=rent_t_dt
-                        )
-                        st.download_button(
-                            label="📄 1. INVOICE UPLOAD",
-                            data=inv_rent_bytes,
-                            file_name=f"INVOICE_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="btn_inv_rent_gj"
-                        )
-                    with r_b2:
-                        det_rent_bytes = ERPREMGenerator.generate_invoice_detail_upload(
-                            invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
-                            sites=gj_site_records,
-                            circle_code=rent_circle_code,
-                            vendor_no=rent_vendor_no,
-                            period=rent_fy_period,
-                            fiscal_year=y_num
-                        )
-                        st.download_button(
-                            label="📄 2. DETAIL UPLOAD",
-                            data=det_rent_bytes,
-                            file_name=f"INVOICE_detail_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="btn_det_rent_gj"
-                        )
-                    with r_b3:
-                        cond_rent_bytes = ERPREMGenerator.generate_condition_upload(
-                            sites=gj_site_records,
-                            bill_type=rent_stream_code,
-                            circle_code=rent_circle_code,
-                            from_date=rent_f_dt,
-                            to_date=rent_t_dt
-                        )
-                        st.download_button(
-                            label=f"📄 3. CONDITION ({rent_stream_code})",
-                            data=cond_rent_bytes,
-                            file_name=f"CONDITION_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="btn_cond_rent_gj"
-                        )
+        gj_data = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
+        if "error" in gj_data or gj_data.get("total_sites", 0) == 0:
+            st.error(f"Error loading Gujarat master data: {gj_data.get('error', 'No site records found')}")
         else:
-            rent_file = "media_1794423587823_bcbc41b2.xlsx"
-            clean_rent_file = "BSNL_IP_Rental_Reconciliation_FEB-26.xlsx"
+            tot_sites = gj_data.get("total_sites", 0)
+            c_pass = gj_data.get("total_passed", 0.0)
+            c_claim = gj_data.get("total_claimed", c_pass * 1.18)
+            gst_amt = c_pass * 0.18
+            tot_payable = c_pass + gst_amt
+            df_invoices = gj_data.get("invoices_summary_df", pd.DataFrame())
 
-        if os.path.exists(clean_rent_file) or os.path.exists(rent_file):
-            try:
-                # Load Site-level Rent Audit Data
-                if os.path.exists(clean_rent_file):
-                    df_rent_sites = pd.read_excel(clean_rent_file, sheet_name="FEB-26 Site Rent Audit (486)")
-                    df_rent_miro = pd.read_excel(clean_rent_file, sheet_name="Rental Invoices Summary")
-                else:
-                    df_rent_sites = pd.read_excel(rent_file, sheet_name="ELEVAR DIGITEL FEB-26", header=1)
-                    df_rent_sites = df_rent_sites.dropna(subset=["Global Site ID"]).copy()
-                    df_rent_miro = pd.read_excel(rent_file, sheet_name="MIRO", skiprows=4).dropna(how="all")
+            # Top KPI Metric Cards
+            k1, k2, k3, k4, k5 = st.columns(5)
+            with k1:
+                st.metric("Total Leased Sites", f"{tot_sites:,} Sites")
+            with k2:
+                st.metric("Total Claimed Rent", f"₹{c_pass:,.2f}")
+            with k3:
+                st.metric("BSNL Approved Rent", f"₹{c_pass:,.2f}")
+            with k4:
+                st.metric("GST @ 18%", f"₹{gst_amt:,.2f}")
+            with k5:
+                st.metric("Total Approved With GST", f"₹{tot_payable:,.2f}")
 
-                # Calculate KPI Metrics
-                tot_sites_rent = len(df_rent_sites)
-                claimed_col = [c for c in df_rent_sites.columns if "Claimed Rent" in c or "Claimed IP FEE before Tax" in c]
-                approved_col = [c for c in df_rent_sites.columns if "Approved Rent" in c or "Final IP FEE Before Tax" in c]
-                calc_col = [c for c in df_rent_sites.columns if "Calculated Rent" in c or "Calculated IP Fee" in c]
-                ded_col = [c for c in df_rent_sites.columns if "Deduction" in c or "Rent Deduction" in c]
-
-                c_claim = float(pd.to_numeric(df_rent_sites[claimed_col[0]], errors="coerce").fillna(0).sum()) if claimed_col else 14591996.65
-                c_calc = float(pd.to_numeric(df_rent_sites[calc_col[0]], errors="coerce").fillna(0).sum()) if calc_col else 14334512.09
-                c_app = float(pd.to_numeric(df_rent_sites[approved_col[0]], errors="coerce").fillna(0).sum()) if approved_col else 14043660.59
-                c_ded = float(pd.to_numeric(df_rent_sites[ded_col[0]], errors="coerce").fillna(0).sum()) if ded_col else 495743.43
-
-                # Render KPI Metric Cards
-                r1, r2, r3, r4, r5 = st.columns(5)
-                with r1:
-                    st.metric("Total Leased Sites", f"{tot_sites_rent} Sites")
-                with r2:
-                    st.metric("Total Claimed Rent", f"₹{c_claim:,.2f}")
-                with r3:
-                    st.metric("BSNL Calculated Rent", f"₹{c_calc:,.2f}")
-                with r4:
-                    st.metric("Final Approved Rent", f"₹{c_app:,.2f}", delta=f"-₹{c_ded:,.2f}", delta_color="inverse")
-                with r5:
-                    st.metric("Total Rent Disallowance", f"₹{c_ded:,.2f}", delta="Credit Note Recovery")
-
-                st.markdown("---")
-
-                # Section 1: Rental Invoices & MIRO Tracking
-                st.markdown("### 📋 IP Rental Invoices & SAP/ERP MIRO Summary")
-                if not df_rent_miro.empty:
-                    st.dataframe(
-                        df_rent_miro.style.format({
-                            "Claimed Excl GST": "₹{:,.2f}" if "Claimed Excl GST" in df_rent_miro.columns else "{}",
-                            "Claimed With GST": "₹{:,.2f}" if "Claimed With GST" in df_rent_miro.columns else "{}",
-                            "Passed Excl GST": "₹{:,.2f}" if "Passed Excl GST" in df_rent_miro.columns else "{}",
-                            "Total With GST": "₹{:,.2f}" if "Total With GST" in df_rent_miro.columns else "{}"
-                        }),
-                        use_container_width=True
-                    )
-
-                st.markdown("---")
-
-                # Section 2: Detailed Site-by-Site Rent Audit Table
-                st.markdown("### 🔍 Site-by-Site Tower Rental Audit (FEB-26)")
-
-                # Filters
-                f_r1, f_r2, f_r3 = st.columns([1, 1, 2])
-                with f_r1:
-                    ssa_choices = ["All"]
-                    if "SSA" in df_rent_sites.columns:
-                        ssa_choices += sorted([str(x) for x in df_rent_sites["SSA"].dropna().unique()])
-                    chosen_ssa = st.selectbox("Filter SSA", ssa_choices, key="rent_ssa_filter")
-
-                with f_r2:
-                    disallow_filter = st.selectbox("Filter Disallowance", ["All Sites", "Only Deductions (> ₹0)", "Fully Passed"], key="rent_disallow_filter")
-
-                with f_r3:
-                    rent_search = st.text_input("Search Site Name / Global ID / ATC ID", "", key="rent_search_filter")
-
-                view_rent_df = df_rent_sites.copy()
-                if chosen_ssa != "All" and "SSA" in view_rent_df.columns:
-                    view_rent_df = view_rent_df[view_rent_df["SSA"].astype(str) == chosen_ssa]
-
-                if disallow_filter == "Only Deductions (> ₹0)" and ded_col:
-                    view_rent_df = view_rent_df[pd.to_numeric(view_rent_df[ded_col[0]], errors="coerce").fillna(0) > 0]
-                elif disallow_filter == "Fully Passed" and ded_col:
-                    view_rent_df = view_rent_df[pd.to_numeric(view_rent_df[ded_col[0]], errors="coerce").fillna(0) == 0]
-
-                if rent_search.strip():
-                    sq = rent_search.strip().lower()
-                    match_mask = pd.Series(False, index=view_rent_df.index)
-                    for sc in ["Site Name", "Global ID", "Global Site ID", "Vendor Site ID", "ATC Site ID", "BSNL Site ID", "BSNL ID"]:
-                        if sc in view_rent_df.columns:
-                            match_mask = match_mask | view_rent_df[sc].astype(str).str.lower().str.contains(sq, na=False)
-                    view_rent_df = view_rent_df[match_mask]
-
-                st.caption(f"Showing {len(view_rent_df)} of {len(df_rent_sites)} sites in IP Rental Audit")
-
-                # Clean for PyArrow display
-                for col in view_rent_df.columns:
-                    if view_rent_df[col].dtype == object:
-                        view_rent_df[col] = view_rent_df[col].fillna("").astype(str)
-
+            st.markdown("---")
+            st.markdown(f"### 📋 ATC Gujarat Monthly IP Rental Invoices Matrix ({len(df_invoices)} Invoices)")
+            if not df_invoices.empty:
                 st.dataframe(
-                    view_rent_df,
-                    use_container_width=True,
-                    height=450
+                    df_invoices.style.format({
+                        "BSNL Passed Excl. GST (₹)": "₹{:,.2f}",
+                        "Vendor Claimed With GST (₹)": "₹{:,.2f}",
+                        "Total Deduction / Diff (₹)": "₹{:,.2f}",
+                        "GST @ 18% (₹)": "₹{:,.2f}",
+                        "Net Payable Incl. GST (₹)": "₹{:,.2f}"
+                    }),
+                    use_container_width=True
                 )
 
-                # Export button for Rent Excel
-                if os.path.exists(clean_rent_file):
-                    with open(clean_rent_file, "rb") as f_r:
-                        st.download_button(
-                            label="📥 Download IP Tower Rent Reconciliation Excel (BSNL_IP_Rental_Reconciliation_FEB-26.xlsx)",
-                            data=f_r.read(),
-                            file_name="BSNL_IP_Rental_Reconciliation_FEB-26.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True
-                        )
-
-                # ERP REM Generator for Rent Batch
-                with st.expander("📤 Generate BSNL ERP REM Upload Templates for IP Tower Rent (486 Sites - Condition T500 / T630)", expanded=False):
-                    st.markdown("#### 🏛️ SAP REM Module Bulk Upload Templates — IP Tower Rent")
-                    st.caption("Generates the 3 official BSNL ERP upload files (`INVOICE UPLOAD`, `INVOICE detail UPLOAD`, and `CONDITION UPLOAD`) for the entire 486 rental sites under Condition Type **T500 (Passive Rent)** or **T630 (Ground Rent)**.")
-
-                    r_col1, r_col2, r_col3 = st.columns(3)
-                    with r_col1:
-                        rent_stream_type = st.selectbox(
-                            "Condition Stream",
-                            ["🏢 IP Tower Rent (T500)", "🏠 Ground / Landlord Rent (T630)"],
-                            key="rent_tab_stream"
-                        )
-                    with r_col2:
-                        rent_vendor_no = st.text_input("Vendor Code", "2004755" if ("Elevar" in vendor_selected or "ATC" in vendor_selected) else "2004711", key="rent_tab_vendor")
-                    with r_col3:
-                        rent_circle_code = st.text_input("Circle Code", "MP", key="rent_tab_circle")
-
-                    rent_stream_code = "RENT" if "Tower Rent" in rent_stream_type else "LLR"
-                    rent_fy_period = ERPREMGenerator.get_fy_period(month_selected)
-                    rent_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
-                    rent_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
-
-                    # Build rent site records
-                    rent_site_records = []
-                    for _, r in df_rent_sites.iterrows():
-                        c_no = r.get("REM Contract No")
-                        if pd.notna(c_no):
-                            rent_site_records.append({
-                                "contract_no": str(c_no).split('.')[0].strip(),
-                                "global_id": str(r.get("Global Site ID", "")).split('.')[0],
-                                "site_name": str(r.get("Site Name", "")),
-                                "approved_rent": float(r.get("Final IP FEE Before Tax (Z=Min(X,Y))", 0.0) or 0.0),
-                                "ground_rent": float(r.get("Claimed Landlord Rent", 0.0) or 0.0),
-                                "outage_penalty": 0.0,
-                                "base_passed": float(r.get("Final IP FEE Before Tax (Z=Min(X,Y))", 0.0) or 0.0)
-                            })
-
-                    r_zip_btn, r_b1, r_b2, r_b3 = st.columns([1.4, 1, 1, 1])
-                    with r_zip_btn:
-                        zip_rent_pkg = ERPREMGenerator.generate_all_3_templates_zip(
-                            invoice_no="FEB-26-RENT-486SITES",
-                            sites=rent_site_records,
-                            bill_type=rent_stream_code,
-                            circle_code=rent_circle_code,
-                            vendor_no=rent_vendor_no,
-                            period=rent_fy_period,
-                            fiscal_year=y_num,
-                            from_date=rent_f_dt,
-                            to_date=rent_t_dt
-                        )
-                        st.download_button(
-                            label=f"📦 Complete Rent ERP Package (.ZIP)",
-                            data=zip_rent_pkg,
-                            file_name=f"BSNL_REM_UPLOAD_{rent_circle_code}_{rent_stream_code}_FEB26.zip",
-                            mime="application/zip",
-                            type="primary",
-                            use_container_width=True,
-                            key="btn_zip_rent_tab"
-                        )
-                    with r_b1:
-                        inv_rent_bytes = ERPREMGenerator.generate_invoice_upload(
-                            invoice_no="FEB-26-RENT-486SITES",
-                            sites=rent_site_records,
-                            bill_type=rent_stream_code,
-                            circle_code=rent_circle_code,
-                            vendor_no=rent_vendor_no,
-                            from_date=rent_f_dt,
-                            to_date=rent_t_dt
-                        )
-                        st.download_button(
-                            label="📄 1. INVOICE UPLOAD",
-                            data=inv_rent_bytes,
-                            file_name=f"INVOICE_UPLOAD_RENT_FEB26.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="btn_inv_rent_tab"
-                        )
-                    with r_b2:
-                        det_rent_bytes = ERPREMGenerator.generate_invoice_detail_upload(
-                            invoice_no="FEB-26-RENT-486SITES",
-                            sites=rent_site_records,
-                            circle_code=rent_circle_code,
-                            vendor_no=rent_vendor_no,
-                            period=rent_fy_period,
-                            fiscal_year=y_num
-                        )
-                        st.download_button(
-                            label="📄 2. DETAIL UPLOAD",
-                            data=det_rent_bytes,
-                            file_name=f"INVOICE_detail_UPLOAD_RENT_FEB26.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="btn_det_rent_tab"
-                        )
-                    with r_b3:
-                        cond_rent_bytes = ERPREMGenerator.generate_condition_upload(
-                            sites=rent_site_records,
-                            bill_type=rent_stream_code,
-                            circle_code=rent_circle_code,
-                            from_date=rent_f_dt,
-                            to_date=rent_t_dt
-                        )
-                        st.download_button(
-                            label=f"📄 3. CONDITION ({rent_stream_code})",
-                            data=cond_rent_bytes,
-                            file_name=f"CONDITION_UPLOAD_{rent_stream_code}_FEB26.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            key="btn_cond_rent_tab"
-                        )
-            except Exception as e:
-                st.error(f"Error loading IP Rental dataset: {str(e)}")
-        else:
-            st.info("IP Rental data file not found in workspace.")
-
-
-# ----------------- TABS 4 to 8: INVOICES 1 TO 5 (ELECTRICITY SITES) -----------------
-def render_invoice_tab(inv_number, inv_idx, site_count, pages_str):
-    st.subheader(f"Invoice No: {inv_number} ({site_count} Sites | PDF {pages_str})")
-    if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
-        st.info(f"ℹ️ **No Invoice Data Available for {vendor_selected} in {circle_selected} ({month_selected}-{year_selected})**")
-        st.caption(f"Invoice {inv_number} belongs to the FEB-2026 (Elevar Digitel - MP) batch. Select FEB-2026 / Elevar Digitel in the sidebar to view, or upload invoices for {vendor_selected} in Tab 1.")
-        return
-
-    excel_path = "BSNL_5_Invoices_Reconciliation_Output.xlsx"
-    if os.path.exists(excel_path):
-        xls = pd.ExcelFile(excel_path)
-        matching_sheet = [s for s in xls.sheet_names if (inv_number in s or f"Inv {inv_idx}" in s)]
-        if matching_sheet:
-            df = pd.read_excel(excel_path, sheet_name=matching_sheet[0], skiprows=2)
-
-            # Separate data rows from summary total row
-            is_total_row = df["S.No"].astype(str).str.upper().str.contains("TOTAL", na=False)
-            data_df = df[~is_total_row].copy()
-            total_df = df[is_total_row].copy()
-
-            tot_claim = float(data_df["Claimed Energy (₹)"].sum()) if "Claimed Energy (₹)" in data_df.columns else 0.0
-            tot_pen = float(data_df["Outage Penalty (₹)"].sum()) if "Outage Penalty (₹)" in data_df.columns else 0.0
-            tot_net = float(data_df["Net Approved (₹)"].sum()) if "Net Approved (₹)" in data_df.columns else 0.0
-            tot_ded = float(data_df["Total Deduction (₹)"].sum()) if "Total Deduction (₹)" in data_df.columns else 0.0
-
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric("Total Claimed", f"₹{tot_claim:,.2f}")
-            k2.metric("Outage Penalties", f"₹{tot_pen:,.2f}")
-            k3.metric("Net Approved Payable", f"₹{tot_net:,.2f}", delta=f"-₹{tot_ded:,.2f}", delta_color="inverse")
-            k4.metric("Deduction / Dispute", f"₹{tot_ded:,.2f}", delta="Credit Note Recovery")
-
-            # Search & Filter
-            f_col1, f_col2 = st.columns([1, 2])
-            with f_col1:
-                status_choices = ["All"]
-                if "Audit Status" in data_df.columns:
-                    status_choices += sorted(list(data_df["Audit Status"].dropna().unique()))
-                chosen_status = st.selectbox(f"Filter Status ({inv_number})", status_choices, key=f"status_{inv_number}")
-            with f_col2:
-                search_q = st.text_input(f"Search Site Name / ID ({inv_number})", "", key=f"search_{inv_number}")
-
-            view_df = data_df.copy()
-            if chosen_status != "All":
-                view_df = view_df[view_df["Audit Status"] == chosen_status]
-            if search_q.strip():
-                sq = search_q.strip().lower()
-                view_df = view_df[
-                    view_df["Site Name"].astype(str).str.lower().str.contains(sq, na=False) |
-                    view_df["Global ID"].astype(str).str.lower().str.contains(sq, na=False) |
-                    view_df["Vendor Site ID"].astype(str).str.lower().str.contains(sq, na=False)
-                ]
-
-            st.caption(f"Displaying {len(view_df)} of {len(data_df)} sites for Invoice {inv_number}")
-            
-            # Ensure all columns are arrow-friendly
-            view_df["S.No"] = view_df["S.No"].astype(str)
-            for col in view_df.columns:
-                if view_df[col].dtype == object:
-                    view_df[col] = view_df[col].fillna("").astype(str)
-
-            # Format display table
-            st.dataframe(
-                view_df,
-                use_container_width=True,
-                height=450
-            )
-
-            # ----------------- BSNL ERP REM UPLOAD TEMPLATES GENERATOR -----------------
             st.markdown("---")
-            with st.expander(f"📤 Generate BSNL ERP REM Upload Templates (Invoice: {inv_number})", expanded=True):
-                st.markdown(f"#### 🏛️ SAP REM Module Bulk Upload Templates — Invoice `{inv_number}`")
-                st.markdown("Generates the official **3 upload templates** required for booking into BSNL SAP ERP Real Estate Management (REM) Module (`INVOICE UPLOAD`, `INVOICE detail UPLOAD`, and `CONDITION UPLOAD`) matching Corporate Office standards.")
+            st.markdown("### 🏢 Executive Financial Highlights — Gujarat ATC MSA")
+            c_h1, c_h2 = st.columns(2)
+            with c_h1:
+                st.info(f"""
+                **Billing & 4G Addition Rate Card Compliance:**
+                * **524 Operating Sites** audited across all 16 Gujarat Telecom Districts (SSAs).
+                * **Applied MSA Base Rate:** Standardized under 3rd EoI MSA sharing slabs.
+                * **4G Infrastructure Additions:**
+                  - Antenna Loading: **₹650 / month**
+                  - Power Equipment Markup: **₹3,000 / month**
+                  - 4G BTS Loading Markup: **₹3,750 / month**
+                  - Total Standard Loading: **₹7,400 / month per 4G site**
+                """)
+            with c_h2:
+                pen_cnt = len(gj_data.get("penalties_df", []))
+                tot_pen_amt = float(gj_data.get("penalties_df", pd.DataFrame())["Deployment penalty"].sum()) if pen_cnt > 0 and "Deployment penalty" in gj_data.get("penalties_df", pd.DataFrame()).columns else 0.0
+                st.warning(f"""
+                **Contractual Deductions & SLA Tracking:**
+                * **Deployment Delay Penalties:** **{pen_cnt} delayed delivery sites** identified with excess SO-to-RFI lead times. Total contractual recovery: **₹{tot_pen_amt:,.2f}**.
+                * **Outage & SLA Sign-Offs:** **{len(gj_data.get('outage_df', []))} downtime entries** logged across all operators in Gujarat field reports.
+                * **SAP REM Upload Readiness:** Clean 100% formatted templates ready for bulk ERP upload under Company Code `1100` and Circle Code `GJ`.
+                """)
 
-                c_erp1, c_erp2, c_erp3, c_erp4 = st.columns(4)
-                with c_erp1:
-                    bill_stream = st.selectbox(
-                        "Billing Component",
-                        ["⚡ Energy / Electricity (T570 EB / T580 DG)", "🏢 IP Tower Rent (T500)", "🏠 Ground / Landlord Rent (T630)"],
-                        key=f"stream_{inv_number}"
-                    )
-                with c_erp2:
-                    default_vendor_code = "2004755" if ("Elevar" in vendor_selected or "ATC" in vendor_selected) else "2004711"
-                    erp_vendor = st.text_input("REM Vendor Code", default_vendor_code, key=f"vendor_{inv_number}")
-                with c_erp3:
-                    erp_be = st.text_input("Business Entity", "23400000", key=f"be_{inv_number}")
-                with c_erp4:
-                    circle_code_input = st.text_input("Circle Sheet Code", "MP", key=f"circle_{inv_number}")
 
-                stream_code = "ENERGY" if "Energy" in bill_stream else ("RENT" if "Rent" in bill_stream else "LLR")
+# ----------------- TAB 3: SITE-BY-SITE LEASED SITES AUDIT -----------------
+with tab_sites:
+    st.subheader(f"🔍 Site-by-Site Leased Sites Tower Rental Audit — Gujarat ({month_selected}-{year_selected})")
+    st.write("Detailed audit registry of each tower site: city classification, tenancy count, 4G markups, and applied rental fee.")
 
-                # Build site records with 13-digit contract mapping
-                c_map = load_contract_mapping()
-                site_records = []
-                for _, r in data_df.iterrows():
-                    gid = str(r.get("Global ID", "")).split('.')[0].strip()
-                    vid = str(r.get("Vendor Site ID", "")).strip()
-                    c_no = c_map.get(gid) or c_map.get(vid)
-                    if not c_no:
-                        c_no = f"2353000{gid.zfill(6)}" if gid.isdigit() else "2353000000001"
-
-                    site_records.append({
-                        "contract_no": c_no,
-                        "global_id": gid,
-                        "site_name": r.get("Site Name", ""),
-                        "base_passed": float(r.get("Base Passed (₹)", 0.0) or 0.0),
-                        "outage_penalty": float(r.get("Outage Penalty (₹)", 0.0) or 0.0),
-                        "approved_rent": float(r.get("Net Approved (₹)", r.get("Base Passed (₹)", 0.0)) or 0.0),
-                        "ground_rent": 0.0,
-                        "dg_run_hours": float(r.get("DG Run/Day", 0.0) or 0.0)
-                    })
-
-                fy_period = ERPREMGenerator.get_fy_period(month_selected)
-                from_date_str = f"01.{str(m_num).zfill(2)}.{y_num}"
-                to_date_str = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
-
-                st.caption(f"📋 Parameters: Company Code: `1100` | Period: `{fy_period}` | FY: `{y_num}` | Dates: `{from_date_str}` to `{to_date_str}` | Sites: `{len(site_records)}`")
-
-                btn_col_zip, btn_col1, btn_col2, btn_col3 = st.columns([1.4, 1, 1, 1])
-
-                with btn_col_zip:
-                    zip_data = ERPREMGenerator.generate_all_3_templates_zip(
-                        invoice_no=inv_number,
-                        sites=site_records,
-                        bill_type=stream_code,
-                        circle_code=circle_code_input,
-                        company_code=1100,
-                        business_entity=erp_be,
-                        vendor_no=erp_vendor,
-                        from_date=from_date_str,
-                        to_date=to_date_str,
-                        period=fy_period,
-                        fiscal_year=y_num
-                    )
-                    st.download_button(
-                        label=f"📦 Complete ERP REM Package (.ZIP)",
-                        data=zip_data,
-                        file_name=f"BSNL_REM_UPLOAD_{circle_code_input}_{stream_code}_{inv_number}.zip",
-                        mime="application/zip",
-                        type="primary",
-                        use_container_width=True,
-                        key=f"zip_btn_{inv_number}"
-                    )
-
-                with btn_col1:
-                    inv_bytes = ERPREMGenerator.generate_invoice_upload(
-                        invoice_no=inv_number,
-                        sites=site_records,
-                        bill_type=stream_code,
-                        circle_code=circle_code_input,
-                        company_code=1100,
-                        business_entity=erp_be,
-                        vendor_no=erp_vendor,
-                        from_date=from_date_str,
-                        to_date=to_date_str
-                    )
-                    st.download_button(
-                        label="📄 1. INVOICE UPLOAD (30 Cols)",
-                        data=inv_bytes,
-                        file_name=f"INVOICE_UPLOAD_{inv_number}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                        key=f"inv_btn_{inv_number}"
-                    )
-
-                with btn_col2:
-                    det_bytes = ERPREMGenerator.generate_invoice_detail_upload(
-                        invoice_no=inv_number,
-                        sites=site_records,
-                        circle_code=circle_code_input,
-                        company_code=1100,
-                        vendor_no=erp_vendor,
-                        period=fy_period,
-                        fiscal_year=y_num
-                    )
-                    st.download_button(
-                        label="📄 2. DETAIL UPLOAD (8 Cols)",
-                        data=det_bytes,
-                        file_name=f"INVOICE_detail_UPLOAD_{inv_number}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                        key=f"det_btn_{inv_number}"
-                    )
-
-                with btn_col3:
-                    cond_bytes = ERPREMGenerator.generate_condition_upload(
-                        sites=site_records,
-                        bill_type=stream_code,
-                        circle_code=circle_code_input,
-                        company_code=1100,
-                        from_date=from_date_str,
-                        to_date=to_date_str
-                    )
-                    cond_tag = "T570_EB" if stream_code == "ENERGY" else ("T500_Rent" if stream_code == "RENT" else "T630_LLR")
-                    st.download_button(
-                        label=f"📄 3. CONDITION UPLOAD ({cond_tag})",
-                        data=cond_bytes,
-                        file_name=f"CONDITION_UPLOAD_{inv_number}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                        key=f"cond_btn_{inv_number}"
-                    )
-        else:
-            st.warning(f"Sheet for Invoice {inv_number} not found in workbook.")
+    if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
+        render_no_data_banner("Site-by-Site Audit", vendor_selected, circle_selected, month_selected, year_selected)
     else:
-        st.info("Reconciliation output not found. Please click 'Reset / Reload Current Package' in Tab 1.")
+        gj_data = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
+        df_sites = gj_data.get("sites_df", pd.DataFrame()).copy()
+
+        if df_sites.empty:
+            st.info("No site records loaded for Gujarat circle.")
+        else:
+            # Filters
+            f1, f2, f3, f4 = st.columns([1, 1, 1, 2])
+            with f1:
+                ssa_col = next((c for c in df_sites.columns if "SSA" in str(c)), None)
+                ssa_opts = ["All"]
+                if ssa_col:
+                    ssa_opts += sorted([str(x) for x in df_sites[ssa_col].dropna().unique() if str(x) not in ["nan", ""]])
+                sel_ssa = st.selectbox("Filter SSA", ssa_opts, key="site_filter_ssa")
+
+            with f2:
+                inv_col = next((c for c in df_sites.columns if "Invoice" in str(c)), None)
+                inv_opts = ["All"]
+                if inv_col:
+                    inv_opts += sorted([str(x).split('.')[0].strip() for x in df_sites[inv_col].dropna().unique() if str(x).strip().isdigit()])
+                sel_inv = st.selectbox("Filter Invoice No", inv_opts, key="site_filter_inv")
+
+            with f3:
+                type_col = next((c for c in df_sites.columns if "Site Type" in str(c) or "Type" in str(c)), None)
+                type_opts = ["All"]
+                if type_col:
+                    type_opts += sorted([str(x) for x in df_sites[type_col].dropna().unique() if str(x) not in ["nan", ""]])
+                sel_type = st.selectbox("Filter Site Type", type_opts, key="site_filter_type")
+
+            with f4:
+                search_kw = st.text_input("Search Site Name / IP ID / OPCO Site ID", "", key="site_search_kw")
+
+            # Apply Filters
+            view_sites = df_sites.copy()
+            if sel_ssa != "All" and ssa_col:
+                view_sites = view_sites[view_sites[ssa_col].astype(str) == sel_ssa]
+            if sel_inv != "All" and inv_col:
+                view_sites = view_sites[view_sites[inv_col].astype(str).str.contains(sel_inv, na=False)]
+            if sel_type != "All" and type_col:
+                view_sites = view_sites[view_sites[type_col].astype(str) == sel_type]
+            if search_kw.strip():
+                kw = search_kw.strip().lower()
+                mask = pd.Series(False, index=view_sites.index)
+                for c in ["Site Name", "GLOBAL_SITE_ID", "Site ID", "SAP ID", "OPCO Site ID", "IP ID"]:
+                    if c in view_sites.columns:
+                        mask = mask | view_sites[c].astype(str).str.lower().str.contains(kw, na=False)
+                view_sites = view_sites[mask]
+
+            st.caption(f"Showing {len(view_sites)} of {len(df_sites)} sites in Gujarat ATC leased registry")
+
+            for col in view_sites.columns:
+                if view_sites[col].dtype == object:
+                    view_sites[col] = view_sites[col].fillna("").astype(str)
+
+            st.dataframe(view_sites, use_container_width=True, height=500)
 
 
-with tab_inv1:
-    render_invoice_tab("607239111046515", 1, 100, "Pages 1-5")
+# ----------------- TAB 4: DEPLOYMENT DELAY PENALTIES -----------------
+with tab_penalties:
+    st.subheader(f"⚠️ Contractual Deployment Delay Penalties (SO to RFI Lead Time Audit)")
+    st.write("Contractual penalties for tower sites with commissioning lead times exceeding the stipulated turnaround time from Date of Service Order (SO) to Ready for Installation (RFI).")
 
-with tab_inv2:
-    render_invoice_tab("607239111046516", 2, 85, "Pages 6-9")
+    if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
+        render_no_data_banner("Deployment Delay Penalties", vendor_selected, circle_selected, month_selected, year_selected)
+    else:
+        gj_data = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
+        df_pen = gj_data.get("penalties_df", pd.DataFrame()).copy()
 
-with tab_inv3:
-    render_invoice_tab("607239111046519", 3, 99, "Pages 10-14")
+        if df_pen.empty:
+            st.info("No deployment penalty records found for this period.")
+        else:
+            tot_pen_sum = float(df_pen["Deployment penalty"].sum()) if "Deployment penalty" in df_pen.columns else 0.0
+            max_days = int(df_pen["Days_SO to RFI"].max()) if "Days_SO to RFI" in df_pen.columns and pd.notna(df_pen["Days_SO to RFI"].max()) else 0
+            avg_days = float(df_pen["Days_SO to RFI"].mean()) if "Days_SO to RFI" in df_pen.columns and pd.notna(df_pen["Days_SO to RFI"].mean()) else 0
 
-with tab_inv4:
-    render_invoice_tab("607239111046520", 4, 100, "Pages 15-19")
+            p1, p2, p3 = st.columns(3)
+            with p1:
+                st.metric("Delayed Commissioning Sites", f"{len(df_pen)} Sites")
+            with p2:
+                st.metric("Total Deployment Penalties", f"₹{tot_pen_sum:,.2f}", delta="Deduct from ATC Payment", delta_color="inverse")
+            with p3:
+                st.metric("Maximum Turnaround Delay", f"{max_days} Days", delta=f"Avg {avg_days:.0f} Days")
 
-with tab_inv5:
-    render_invoice_tab("607239111046533", 5, 100, "Pages 20-24")
+            st.markdown("---")
+            st.markdown(f"### 📋 Itemized Deployment Delay Penalty Schedule ({len(df_pen)} Sites)")
+
+            for col in df_pen.columns:
+                if df_pen[col].dtype == object:
+                    df_pen[col] = df_pen[col].fillna("").astype(str)
+
+            st.dataframe(df_pen, use_container_width=True, height=450)
 
 
-# ----------------- TAB 9: OUTAGE & SLA LOG (SORTED BY INVOICE NO) -----------------
+# ----------------- TAB 5: MASTER OUTAGE & AC DOWNTIME SIGN-OFF -----------------
 with tab_outage:
-    st.subheader(f"⚡ Outage Sign-Off Certificates Audit (Pages 25 to 80) — {vendor_selected} ({month_selected}-{year_selected})")
-    st.caption("Sorted strictly by Invoice Number for systematic verification against vendor bill batches.")
+    st.subheader(f"⚡ Master Outage & AC Downtime Sign-Off — Gujarat Field Reports")
+    st.write("Multi-operator field downtime audit across all 16 Gujarat Telecom Districts (SSAs), capturing BTS outage durations, root cause fault reasons, and air conditioning (AC) operational statuses.")
 
     if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
         render_no_data_banner("Outage & SLA Sign-Off", vendor_selected, circle_selected, month_selected, year_selected)
     else:
-        excel_path = "BSNL_5_Invoices_Reconciliation_Output.xlsx"
-        if os.path.exists(excel_path):
-            df_out = pd.read_excel(excel_path, sheet_name="Outage & SLA Audit", skiprows=2)
-            
-            # Sort by Invoice No while keeping TOTAL row at the bottom
-            is_total = df_out["S.No"].astype(str).str.upper().str.contains("TOTAL", na=False)
-            data_out = df_out[~is_total].copy()
-            tot_out = df_out[is_total].copy()
+        gj_data = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
+        df_out = gj_data.get("outage_df", pd.DataFrame()).copy()
 
-            if "Invoice No" in data_out.columns:
-                data_out["Invoice No"] = data_out["Invoice No"].astype(str)
-                data_out = data_out.sort_values(by=["Invoice No"]).reset_index(drop=True)
-                data_out["S.No"] = range(1, len(data_out) + 1)
-                data_out["S.No"] = data_out["S.No"].astype(str)
+        if df_out.empty:
+            st.info("No outage sign-off records found.")
+        else:
+            # Outage Filters
+            o_col1, o_col2, o_col3 = st.columns([1, 1, 2])
+            with o_col1:
+                op_list = ["All"]
+                if "operator" in df_out.columns:
+                    op_list += sorted([str(x) for x in df_out["operator"].dropna().unique() if str(x) not in ["nan", ""]])
+                sel_op = st.selectbox("Filter IP Operator", op_list, key="outage_filter_op")
 
-            df_out_sorted = pd.concat([data_out, tot_out], ignore_index=True)
+            with o_col2:
+                ssa_list = ["All"]
+                if "ssa" in df_out.columns:
+                    ssa_list += sorted([str(x) for x in df_out["ssa"].dropna().unique() if str(x) not in ["nan", ""]])
+                sel_ssa_o = st.selectbox("Filter SSA", ssa_list, key="outage_filter_ssa")
 
-            for col in df_out_sorted.columns:
-                if df_out_sorted[col].dtype == object:
-                    df_out_sorted[col] = df_out_sorted[col].fillna("").astype(str)
-            st.dataframe(df_out_sorted, use_container_width=True)
+            with o_col3:
+                search_out = st.text_input("Search Site ID / OMCR ID / Fault Reason", "", key="outage_search_kw")
+
+            # Apply Outage Filters
+            view_out = df_out.copy()
+            if sel_op != "All" and "operator" in view_out.columns:
+                view_out = view_out[view_out["operator"].astype(str) == sel_op]
+            if sel_ssa_o != "All" and "ssa" in view_out.columns:
+                view_out = view_out[view_out["ssa"].astype(str) == sel_ssa_o]
+            if search_out.strip():
+                s_kw = search_out.strip().lower()
+                m_out = pd.Series(False, index=view_out.index)
+                for sc in ["IP ID", "OMCR ID", "Site Name", "fault_reason", "ac_status", "officer_remarks"]:
+                    if sc in view_out.columns:
+                        m_out = m_out | view_out[sc].astype(str).str.lower().str.contains(s_kw, na=False)
+                view_out = view_out[m_out]
+
+            tot_hrs = view_out["duration_hours"].sum() if "duration_hours" in view_out.columns else 0.0
+
+            m_o1, m_o2, m_o3 = st.columns(3)
+            with m_o1:
+                st.metric("Total Outage Entries", f"{len(view_out):,} Records")
+            with m_o2:
+                st.metric("Accumulated Downtime", f"{tot_hrs:,.1f} Hours")
+            with m_o3:
+                ssa_count = view_out["ssa"].nunique() if "ssa" in view_out.columns else 0
+                st.metric("SSAs Represented", f"{ssa_count} Districts")
+
+            st.caption(f"Showing {len(view_out)} of {len(df_out)} recorded outage events across Gujarat Circle")
+
+            for col in view_out.columns:
+                if view_out[col].dtype == object:
+                    view_out[col] = view_out[col].fillna("").astype(str)
+
+            st.dataframe(view_out, use_container_width=True, height=450)
+
+
+# ----------------- TAB 6: BSNL SAP REM ERP UPLOAD GENERATOR -----------------
+with tab_rem:
+    st.subheader("🏛️ BSNL SAP REM ERP Module Bulk Upload Package — Gujarat Circle (GJ)")
+    st.write("Generates the official 3 Corporate Office standard bulk upload spreadsheets for the BSNL ERP Real Estate Management (REM) module under Company Code `1100` and Circle Code `GJ`.")
+
+    if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
+        render_no_data_banner("BSNL SAP REM Package", vendor_selected, circle_selected, month_selected, year_selected)
+    else:
+        gj_data = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
+        df_rem_sites = gj_data.get("sites_df", pd.DataFrame()).copy()
+
+        if df_rem_sites.empty:
+            st.info("No sites loaded to generate SAP REM templates.")
+        else:
+            st.caption(f"Configured for **{len(df_rem_sites)} sites** from the Gujarat ATC April 2026 Master Billing Dataset.")
+
+            r_col1, r_col2, r_col3 = st.columns(3)
+            with r_col1:
+                rent_stream_type = st.selectbox("Condition Stream", ["🏢 IP Tower Rent (T500)", "🏠 Ground / Landlord Rent (T630)"], key="rem_tab_stream")
+            with r_col2:
+                rent_vendor_no = st.text_input("Registered Vendor Code", "2004755", key="rem_tab_vendor")
+            with r_col3:
+                rent_circle_code = st.text_input("Circle Code (Sheet Identifier)", "GJ", key="rem_tab_circle")
+
+            rent_stream_code = "RENT" if "Tower Rent" in rent_stream_type else "LLR"
+            rent_fy_period = ERPREMGenerator.get_fy_period(month_selected)
+            rent_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
+            rent_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
+
+            gj_site_records = []
+            for _, r in df_rem_sites.iterrows():
+                c_no = r.get("ISA")
+                if pd.isna(c_no):
+                    c_no = f"2353000{str(r.get('GLOBAL_SITE_ID', r.get('IP ID', '')))[:6]}"
+                gj_site_records.append({
+                    "contract_no": str(c_no).split('.')[0].strip(),
+                    "rental_object_no": str(r.get("RO", "")).split('.')[0].strip() if pd.notna(r.get("RO")) else None,
+                    "site_name": str(r.get("Site Name", "")),
+                    "approved_rent": float(r.get("Total IP Fee", 0.0) or 0.0),
+                    "ground_rent": 0.0,
+                    "outage_penalty": 0.0,
+                    "base_passed": float(r.get("Total IP Fee", 0.0) or 0.0)
+                })
+
+            st.markdown("#### 📥 Download BSNL ERP REM Upload Spreadsheets")
+            r_zip_btn, r_b1, r_b2, r_b3 = st.columns([1.4, 1, 1, 1])
+            with r_zip_btn:
+                zip_rent_pkg = ERPREMGenerator.generate_all_3_templates_zip(
+                    invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
+                    sites=gj_site_records,
+                    bill_type=rent_stream_code,
+                    circle_code=rent_circle_code,
+                    vendor_no=rent_vendor_no,
+                    period=rent_fy_period,
+                    fiscal_year=y_num,
+                    from_date=rent_f_dt,
+                    to_date=rent_t_dt
+                )
+                st.download_button(
+                    label=f"📦 Complete Gujarat REM Package (.ZIP)",
+                    data=zip_rent_pkg,
+                    file_name=f"BSNL_REM_UPLOAD_{rent_circle_code}_{rent_stream_code}_{month_selected}{year_selected}.zip",
+                    mime="application/zip",
+                    type="primary",
+                    use_container_width=True,
+                    key="btn_zip_rent_tab_gj"
+                )
+            with r_b1:
+                inv_rent_bytes = ERPREMGenerator.generate_invoice_upload(
+                    invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
+                    sites=gj_site_records,
+                    bill_type=rent_stream_code,
+                    circle_code=rent_circle_code,
+                    vendor_no=rent_vendor_no,
+                    from_date=rent_f_dt,
+                    to_date=rent_t_dt
+                )
+                st.download_button(
+                    label="📄 1. INVOICE UPLOAD",
+                    data=inv_rent_bytes,
+                    file_name=f"INVOICE_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_inv_rent_tab_gj"
+                )
+            with r_b2:
+                det_rent_bytes = ERPREMGenerator.generate_invoice_detail_upload(
+                    invoice_no=f"{rent_circle_code}-{month_selected}{year_selected}-BATCH",
+                    sites=gj_site_records,
+                    circle_code=rent_circle_code,
+                    vendor_no=rent_vendor_no,
+                    period=rent_fy_period,
+                    fiscal_year=y_num
+                )
+                st.download_button(
+                    label="📄 2. DETAIL UPLOAD",
+                    data=det_rent_bytes,
+                    file_name=f"INVOICE_detail_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_det_rent_tab_gj"
+                )
+            with r_b3:
+                cond_rent_bytes = ERPREMGenerator.generate_condition_upload(
+                    sites=gj_site_records,
+                    bill_type=rent_stream_code,
+                    circle_code=rent_circle_code,
+                    from_date=rent_f_dt,
+                    to_date=rent_t_dt
+                )
+                st.download_button(
+                    label=f"📄 3. CONDITION ({rent_stream_code})",
+                    data=cond_rent_bytes,
+                    file_name=f"CONDITION_UPLOAD_{rent_circle_code}_{month_selected}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="btn_cond_rent_tab_gj"
+                )
 
 
 # ----------------- TAB 10: MSA RULES & CIRCULAR AMENDMENTS (NEW INTERACTIVE SECTION) -----------------
@@ -1644,107 +1246,109 @@ with tab_msa:
 
 # ----------------- TAB 11: DOWNLOAD MASTER EXCEL -----------------
 with tab_export:
-    st.subheader(f"Download Master Audit Excel Workbooks — {vendor_selected} ({month_selected}-{year_selected})")
-    
-    if not is_data_available(vendor_selected, circle_selected, month_selected, year_selected):
-        st.warning(f"⚠️ No reconciled Excel workbooks generated yet for **{vendor_selected}** ({circle_selected}) for **{month_selected}-{year_selected}**.")
-        st.info(f"To generate export workbooks for **{vendor_selected}**, upload the monthly billing files in **Tab 1: 📂 Upload & Ingestion** and run reconciliation.")
-    else:
-        st.write("Download the comprehensive audit workbooks for Energy (Electricity / P&F) and IP Tower Rental Fee:")
+    st.subheader(f"📥 Download Master Audit Excel Workbooks — Gujarat Circle ({month_selected}-{year_selected})")
+    st.write("Download the comprehensive master vendor invoice consoles, signed outage reports, and SAP REM bulk upload spreadsheets for Gujarat Circle:")
 
-        col_e1, col_e2 = st.columns(2)
-
-        with col_e1:
-            st.markdown("### ⚡ 1. Electricity (P&F) Audit Workbook")
-            st.markdown("""
-            * **Executive Summary (5 Invoices)**: High-level financial reconciliation & ERP MIRO booking figures.
-            * **Inv 1 to Inv 5 Sheets (484 Sites)**: Site-by-site DG/EB hours, CPH, diesel rates, and calculated vs claimed energy.
-            * **Outage & SLA Audit Sheet**: Downtime in minutes, excess hours, and SLA penalties sorted by Invoice No.
-            * **Vendor Debit Note Annexure**: Itemized dispute list ready to hand over to Elevar Digitel / ATC.
-            """)
-
-            excel_file_path = "BSNL_5_Invoices_Reconciliation_Output.xlsx"
-            if os.path.exists(excel_file_path):
-                with open(excel_file_path, "rb") as f:
-                    st.download_button(
-                        label="📥 Download Electricity Audit Excel (BSNL_5_Invoices_Reconciliation_Output.xlsx)",
-                        data=f.read(),
-                        file_name="BSNL_5_Invoices_Reconciliation_Output.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="primary",
-                        use_container_width=True
-                    )
-
-        with col_e2:
-            st.markdown("### 🏢 2. IP Tower Rental Fee Audit Workbook")
-            st.markdown("""
-            * **Rental Invoices Summary**: All 10 IP rental invoices with Claimed Amount, Passed Amount, Deduction, GST, and ERP MIRO No.
-            * **FEB-26 Site Rent Audit (486 Sites)**: Full site-wise table with Base IP Fee, 4G BBU/RRU loading, Claimed Rent, Calculated Rent, Approved Rent, and Disallowances.
-            * **Tenancy & Landlord Rent Audit**: Tenancy differences and rental absorption threshold verifications.
-            """)
-
-            rent_excel_path = "BSNL_IP_Rental_Reconciliation_FEB-26.xlsx"
-            if os.path.exists(rent_excel_path):
-                with open(rent_excel_path, "rb") as f_r:
-                    st.download_button(
-                        label="📥 Download IP Tower Rent Excel (BSNL_IP_Rental_Reconciliation_FEB-26.xlsx)",
-                        data=f_r.read(),
-                        file_name="BSNL_IP_Rental_Reconciliation_FEB-26.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="primary",
-                        use_container_width=True
-                    )
-
-        # ----------------- SECTION 3: BSNL SAP ERP REM MODULE BULK UPLOAD PACKAGES -----------------
-        st.markdown("---")
-        st.markdown("### 📤 3. BSNL SAP ERP REM Module Bulk Upload Packages (All 5 Invoices)")
+    col_e1, col_e2 = st.columns(2)
+    with col_e1:
+        st.markdown("### 🏢 1. Vendor Invoices & Site Annexure Console")
         st.markdown("""
-        These templates are generated to match the exact Corporate Office structure for **BSNL ERP Real Estate Management (REM)** bulk billing module under Company Code `1100` and Business Entity `23400000`:
-        1. **`INVOICE UPLOAD`** (30 columns: Company Code, BE, Contract No, Rental Object, Vendor No, Invoice No, Period Dates, Energy/Rent/LLR amounts, Outage Penalty, Net Total).
-        2. **`INVOICE detail UPLOAD`** (8 columns: Company Code, 13-digit Contract No, Registered Vendor No, FY Period number, Fiscal Year, Invoice Count=1, Invoice No, Invoice Date).
-        3. **`CONDITION UPLOAD`** (11 columns: Status `I`, Company Code `1100`, Contract No, Condition Type `T570` EB / `T580` DG / `T500` Rent / `T630` LLR, Purpose `A`, Valid From/To, Unit Price, Formula `A`, Withholding Tax `10`).
+        * **April 2026 Vendor Submitted Console**: 524 Leased Sites across 8 Invoices.
+        * **Itemized Slabs**: Base MSA Rate, Antenna Markup (₹650), Power (₹3,000), BTS (₹3,750).
+        * **Deployment Penalties Sheet**: 25 delayed delivery sites with contractual deductions.
+        * **Totals**: ₹1,42,80,830.98 excl. tax / ₹1,68,51,380.56 incl. GST.
         """)
 
-        c_rem_p1, c_rem_p2, c_rem_p3 = st.columns(3)
-        with c_rem_p1:
-            rem_stream = st.selectbox(
-                "Bulk Billing Stream",
-                ["⚡ Energy / Electricity (T570 EB / T580 DG)", "🏢 IP Tower Rent (T500)", "🏠 Landlord Ground Rent (T630)"],
-                key="rem_bulk_stream"
-            )
-        with c_rem_p2:
-            default_rem_vendor = "2004755" if ("Elevar" in vendor_selected or "ATC" in vendor_selected) else "2004711"
-            rem_vendor = st.text_input("Vendor Code", default_rem_vendor, key="rem_bulk_vendor")
-        with c_rem_p3:
-            rem_circle = st.text_input("Circle Code (Sheet Name)", "MP", key="rem_bulk_circle")
+        f_inv_p = os.path.join(MasterInfraManager.get_master_dir(), "Copy_of_IP_Fees_console_April_26_VENDORE_SUBMITTED_BSNL.xlsx")
+        if os.path.exists(f_inv_p):
+            with open(f_inv_p, "rb") as f_inv:
+                st.download_button(
+                    label="📥 Download April-2026 Vendor Console (Copy_of_IP_Fees_console_April_26_VENDORE_SUBMITTED_BSNL.xlsx)",
+                    data=f_inv.read(),
+                    file_name="Copy_of_IP_Fees_console_April_26_VENDORE_SUBMITTED_BSNL.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    type="primary",
+                    use_container_width=True,
+                    key="dl_april_console_btn"
+                )
 
-        bulk_stream_code = "ENERGY" if "Energy" in rem_stream else ("RENT" if "Rent" in rem_stream else "LLR")
-        c_map = load_contract_mapping()
-        fy_p = ERPREMGenerator.get_fy_period(month_selected)
-        f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
-        t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
+        st.markdown("---")
+        st.markdown("### 🏛️ 2. Annual Master IP Fee Registry (FY 2026-27)")
+        st.caption("Master workbook containing month-by-month site registries for Gujarat Circle (580+ sites).")
+        f_main_p = os.path.join(MasterInfraManager.get_master_dir(), "1_ATC_GJ_IPF_2026-27_Main.xlsx")
+        if os.path.exists(f_main_p):
+            with open(f_main_p, "rb") as f_main:
+                st.download_button(
+                    label="📥 Download Full FY 2026-27 Master (1_ATC_GJ_IPF_2026-27_Main.xlsx)",
+                    data=f_main.read(),
+                    file_name="1_ATC_GJ_IPF_2026-27_Main.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True,
+                    key="dl_main_fy_btn"
+                )
 
-        excel_path_rem = "BSNL_5_Invoices_Reconciliation_Output.xlsx"
-        if os.path.exists(excel_path_rem):
-            master_rem_zip = ERPREMGenerator.generate_master_all_invoices_zip(
-                excel_path=excel_path_rem,
-                contract_map=c_map,
-                bill_type=bulk_stream_code,
-                circle_code=rem_circle,
-                vendor_no=rem_vendor,
-                business_entity="23400000",
-                period=fy_p,
+    with col_e2:
+        st.markdown("### ⚡ 3. Multi-Operator Master Outage & AC Downtime Report")
+        st.markdown("""
+        * **All 8 IP Vendors**: ATC/ATCTIPL, Indus Towers, Ascend, Tower Vision, GTL, Crest, SDIL, and Signotox.
+        * **16 Gujarat Districts**: ATD, Surat, Vadodara, Rajkot, Jamnagar, Bhavnagar, Mehsana, Nadiad, Palanpur, Valsad, Amreli, Bharuch, Bhuj, Godhra, Himmatnagar, Junagadh.
+        * **987 Total Downtime Records**: Operational status of Air Conditioners and root cause fault reasons.
+        """)
+
+        f_out_p = os.path.join(MasterInfraManager.get_master_dir(), "All_IP_sites_DT_AC_MR_report_APR-26xls.xls")
+        if os.path.exists(f_out_p):
+            with open(f_out_p, "rb") as f_out:
+                st.download_button(
+                    label="📥 Download Multi-Operator Outage Report (All_IP_sites_DT_AC_MR_report_APR-26xls.xls)",
+                    data=f_out.read(),
+                    file_name="All_IP_sites_DT_AC_MR_report_APR-26xls.xls",
+                    mime="application/vnd.ms-excel",
+                    type="primary",
+                    use_container_width=True,
+                    key="dl_outage_rpt_btn"
+                )
+
+        st.markdown("---")
+        st.markdown("### 📦 4. BSNL SAP REM ERP Bulk Upload Package")
+        st.caption("Official BSNL ERP Real Estate Management package for Company Code 1100 and Circle GJ.")
+        gj_d = MasterInfraManager.load_gujarat_atc_month_data(month_selected, year_selected)
+        df_exp_sites = gj_d.get("sites_df", pd.DataFrame())
+        if not df_exp_sites.empty:
+            exp_site_records = []
+            for _, r in df_exp_sites.iterrows():
+                c_no = r.get("ISA")
+                if pd.isna(c_no):
+                    c_no = f"2353000{str(r.get('GLOBAL_SITE_ID', r.get('IP ID', '')))[:6]}"
+                exp_site_records.append({
+                    "contract_no": str(c_no).split('.')[0].strip(),
+                    "rental_object_no": str(r.get("RO", "")).split('.')[0].strip() if pd.notna(r.get("RO")) else None,
+                    "site_name": str(r.get("Site Name", "")),
+                    "approved_rent": float(r.get("Total IP Fee", 0.0) or 0.0),
+                    "ground_rent": 0.0,
+                    "outage_penalty": 0.0,
+                    "base_passed": float(r.get("Total IP Fee", 0.0) or 0.0)
+                })
+
+            exp_fy_p = ERPREMGenerator.get_fy_period(month_selected)
+            exp_f_dt = f"01.{str(m_num).zfill(2)}.{y_num}"
+            exp_t_dt = f"{days_in_month}.{str(m_num).zfill(2)}.{y_num}"
+
+            zip_bytes = ERPREMGenerator.generate_all_3_templates_zip(
+                invoice_no=f"GJ-{month_selected}{year_selected}-BATCH",
+                sites=exp_site_records,
+                bill_type="RENT",
+                circle_code="GJ",
+                vendor_no="2004755",
+                period=exp_fy_p,
                 fiscal_year=y_num,
-                from_date=f_dt,
-                to_date=t_dt
+                from_date=exp_f_dt,
+                to_date=exp_t_dt
             )
-
             st.download_button(
-                label=f"📦 Download Complete Master ERP REM Package (All 5 Invoices - 15 Templates in 1 ZIP)",
-                data=master_rem_zip,
-                file_name=f"BSNL_REM_MASTER_UPLOAD_{rem_circle}_{bulk_stream_code}_{month_selected}-{year_selected}.zip",
+                label="📦 Download Complete Gujarat REM Package (.ZIP)",
+                data=zip_bytes,
+                file_name=f"BSNL_REM_UPLOAD_GJ_RENT_{month_selected}{year_selected}.zip",
                 mime="application/zip",
-                type="primary",
                 use_container_width=True,
-                key="btn_master_rem_zip"
+                key="btn_export_zip_gj"
             )

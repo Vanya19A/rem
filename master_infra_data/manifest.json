@@ -1,8 +1,8 @@
 {
     "Elevar Digitel (ATC)": {
         "Gujarat": {
-            "filename": "1_ATC_GJ_IPF_2026-27_Main.xlsx",
-            "type": "IP Tower Rent (IPF)",
+            "filename": "Copy_of_IP_Fees_console_April_26_VENDORE_SUBMITTED_BSNL.xlsx",
+            "type": "IP Tower Rent & Vendor Invoices Console",
             "periods": [
                 "APR-2026",
                 "MAY-2026",
@@ -10,32 +10,13 @@
                 "MAR-2026"
             ],
             "sheets": [
-                "APR-26",
-                "MAY-26",
-                "JUNE -26 ",
-                "March _KJJ"
+                "April'26 (2)",
+                "Sheet1 (Penalties)"
             ],
-            "description": "Master IP Fee Reconciliation & Site Registry for Gujarat Circle (FY 2026-27) - 580 Sites",
-            "updated_at": "2026-11-16"
-        },
-        "Madhya Pradesh": {
-            "filename": "media_1794423587823_bcbc41b2.xlsx",
-            "type": "IP Tower Rent & Contract Registry",
-            "periods": [
-                "FEB-2026",
-                "MAR-2026",
-                "APR-2026",
-                "MAY-2026",
-                "JUN-2026",
-                "JUL-2026",
-                "AUG-2026"
-            ],
-            "sheets": [
-                "ELEVAR DIGITEL FEB-26",
-                "FINAL SUMMARY Jul-26 & Aug-26"
-            ],
-            "description": "Master IP Rental Reconciliation & REM Contract Mapping for MP Circle - 486 Sites",
-            "updated_at": "2026-11-14"
+            "outage_filename": "All_IP_sites_DT_AC_MR_report_APR-26xls.xls",
+            "annual_master": "1_ATC_GJ_IPF_2026-27_Main.xlsx",
+            "description": "Gujarat Circle Primary IP Fee Console & Outage Audit (APR-2026) — 524 Sites, 8 Invoices, 987 Downtime Sign-Offs",
+            "updated_at": "2026-11-17"
         }
     }
 }

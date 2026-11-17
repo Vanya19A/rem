@@ -148,6 +148,105 @@ class OutageParser:
         import io
         import os
 
+        # Check if Excel file (path or bytes/buffer)
+        is_excel = False
+        if isinstance(file_or_text, str) and (file_or_text.endswith(".xls") or file_or_text.endswith(".xlsx")) and os.path.exists(file_or_text):
+            is_excel = True
+        elif hasattr(file_or_text, "name") and (file_or_text.name.endswith(".xls") or file_or_text.name.endswith(".xlsx")):
+            is_excel = True
+
+        if is_excel:
+            try:
+                xl = pd.ExcelFile(file_or_text)
+                records = []
+                for sheet in xl.sheet_names:
+                    df_raw = xl.parse(sheet, header=None)
+                    current_ssa = ""
+                    current_ip = sheet
+                    current_month = ""
+                    in_table = False
+                    col_map = {}
+
+                    for _, row in df_raw.iterrows():
+                        row_str = " ".join([str(v) for v in row.values if pd.notna(v)]).strip()
+                        if not row_str:
+                            continue
+
+                        m_ssa = re.search(r'Name of SSA\s*:\s*([^,:\n]+)', row_str, re.I)
+                        if m_ssa:
+                            current_ssa = m_ssa.group(1).strip()
+                        m_month = re.search(r'Month\s*[:-]?\s*([^,:\n]+)', row_str, re.I)
+                        if m_month:
+                            current_month = m_month.group(1).strip()
+                        m_ip = re.search(r'Name Of IP\s*:\s*([^,:\n]+)', row_str, re.I)
+                        if m_ip:
+                            current_ip = m_ip.group(1).strip()
+
+                        if any(h in row_str for h in ["IP ID", "OMCR ID", "Site Name"]) and any(h in row_str for h in ["Down From", "Duration", "Down To"]):
+                            in_table = True
+                            col_map = {}
+                            for c_idx, val in enumerate(row.values):
+                                v_clean = str(val).strip().lower().replace('\n', ' ')
+                                if "ip id" in v_clean:
+                                    col_map["ip_id"] = c_idx
+                                elif "omcr id" in v_clean:
+                                    col_map["omcr_id"] = c_idx
+                                elif "site name" in v_clean:
+                                    col_map["site_name"] = c_idx
+                                elif "id/od" in v_clean:
+                                    col_map["id_od"] = c_idx
+                                elif "down from" in v_clean:
+                                    col_map["down_from"] = c_idx
+                                elif "down to" in v_clean:
+                                    col_map["down_to"] = c_idx
+                                elif "duration" in v_clean:
+                                    col_map["duration"] = c_idx
+                                elif "fault reason" in v_clean or "reason" in v_clean:
+                                    col_map["fault_reason"] = c_idx
+                                elif "ac status" in v_clean:
+                                    col_map["ac_status"] = c_idx
+                                elif "ac remark" in v_clean:
+                                    col_map["ac_remark"] = c_idx
+                                elif "remark" in v_clean and "ac" not in v_clean:
+                                    col_map["remarks"] = c_idx
+                            continue
+
+                        if in_table and "ip_id" in col_map:
+                            ip_val = row.values[col_map["ip_id"]] if col_map["ip_id"] < len(row.values) else None
+                            if pd.isna(ip_val) or str(ip_val).strip() in ["", "nan", "None"]:
+                                continue
+                            ip_str = str(ip_val).strip()
+                            if any(k in ip_str.upper() for k in ["TOTAL", "SUB", "NAME OF SSA", "SL.NO.", "SR NO"]):
+                                if "NAME OF SSA" in ip_str.upper():
+                                    in_table = False
+                                continue
+
+                            dur_raw = row.values[col_map["duration"]] if "duration" in col_map and col_map["duration"] < len(row.values) else "0"
+                            dur_hrs = cls._parse_duration_val(dur_raw)
+                            dur_mins = dur_hrs * 60.0
+
+                            rec = {
+                                "operator": current_ip,
+                                "ssa": current_ssa,
+                                "month": current_month,
+                                "sheet": sheet,
+                                "IP ID": ip_str,
+                                "OMCR ID": str(row.values[col_map["omcr_id"]]).strip() if "omcr_id" in col_map and col_map["omcr_id"] < len(row.values) else "",
+                                "Site Name": str(row.values[col_map["site_name"]]).strip() if "site_name" in col_map and col_map["site_name"] < len(row.values) else "",
+                                "duration_hours": round(dur_hrs, 2),
+                                "outage_minutes": round(dur_mins, 2),
+                                "vendor_site_id": ip_str,
+                                "bsnl_site_id": str(row.values[col_map["omcr_id"]]).strip() if "omcr_id" in col_map and col_map["omcr_id"] < len(row.values) else "",
+                                "fault_reason": str(row.values[col_map["fault_reason"]]).strip() if "fault_reason" in col_map and col_map["fault_reason"] < len(row.values) else "",
+                                "ac_status": str(row.values[col_map["ac_status"]]).strip() if "ac_status" in col_map and col_map["ac_status"] < len(row.values) else "",
+                                "officer_remarks": str(row.values[col_map["remarks"]]).strip() if "remarks" in col_map and col_map["remarks"] < len(row.values) else ""
+                            }
+                            records.append(rec)
+                if records:
+                    return pd.DataFrame(records)
+            except Exception as e:
+                pass
+
         if hasattr(file_or_text, "read"):
             raw_content = file_or_text.read()
             if isinstance(raw_content, bytes):
