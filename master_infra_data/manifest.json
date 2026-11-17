@@ -1,0 +1,41 @@
+{
+    "Elevar Digitel (ATC)": {
+        "Gujarat": {
+            "filename": "1_ATC_GJ_IPF_2026-27_Main.xlsx",
+            "type": "IP Tower Rent (IPF)",
+            "periods": [
+                "APR-2026",
+                "MAY-2026",
+                "JUN-2026",
+                "MAR-2026"
+            ],
+            "sheets": [
+                "APR-26",
+                "MAY-26",
+                "JUNE -26 ",
+                "March _KJJ"
+            ],
+            "description": "Master IP Fee Reconciliation & Site Registry for Gujarat Circle (FY 2026-27) - 580 Sites",
+            "updated_at": "2026-11-16"
+        },
+        "Madhya Pradesh": {
+            "filename": "media_1794423587823_bcbc41b2.xlsx",
+            "type": "IP Tower Rent & Contract Registry",
+            "periods": [
+                "FEB-2026",
+                "MAR-2026",
+                "APR-2026",
+                "MAY-2026",
+                "JUN-2026",
+                "JUL-2026",
+                "AUG-2026"
+            ],
+            "sheets": [
+                "ELEVAR DIGITEL FEB-26",
+                "FINAL SUMMARY Jul-26 & Aug-26"
+            ],
+            "description": "Master IP Rental Reconciliation & REM Contract Mapping for MP Circle - 486 Sites",
+            "updated_at": "2026-11-14"
+        }
+    }
+}

@@ -461,20 +461,20 @@ with tab_upload:
     with col_u1:
         st.markdown("### 📄 1. Vendor Invoice File")
         uploaded_invoice = st.file_uploader(
-            "Monthly Invoices (PDF or Excel)",
-            type=["pdf", "xlsx", "xls"],
+            "Monthly Invoices (PDF, Excel, or CSV)",
+            type=["pdf", "xlsx", "xls", "csv"],
             key="upload_invoice_file"
         )
-        st.caption("Upload the monthly invoice PDF (with site tables) or vendor Excel annexure sheet.")
+        st.caption("Upload the monthly invoice PDF (with site tables), vendor Excel, or CSV site annexure sheet.")
 
     with col_u2:
         st.markdown("### ⚡ 2. Outage Sign-Off Sheets")
         uploaded_outage = st.file_uploader(
-            "Outage Certificates (PDF or Excel)",
-            type=["pdf", "xlsx", "xls"],
+            "Outage Certificates (PDF, Excel, or CSV)",
+            type=["pdf", "xlsx", "xls", "csv"],
             key="upload_outage_file"
         )
-        st.caption("Upload signed SSA outage sheets. *(Note: If your Invoice PDF already includes outage pages, leave this empty)*.")
+        st.caption("Upload signed SSA outage sheets / multi-block outage reports (PDF, Excel, or CSV).")
 
     with col_u3:
         st.markdown("### 📜 3. Master Service Agreement (MSA)")
@@ -508,8 +508,22 @@ with tab_upload:
                 try:
                     # If invoice uploaded
                     if uploaded_invoice:
-                        if uploaded_invoice.name.endswith((".xlsx", ".xls")):
-                            site_df = InvoiceParser.parse_site_annexure_excel(uploaded_invoice)
+                        if uploaded_invoice.name.endswith(".csv"):
+                            inv_res = InvoiceParser.parse_invoice_stream(uploaded_invoice)
+                            site_df = inv_res["billing_df"]
+                            if not inv_res["penalty_df"].empty:
+                                st.session_state["deployment_penalty_df"] = inv_res["penalty_df"]
+                        elif uploaded_invoice.name.endswith((".xlsx", ".xls")):
+                            try:
+                                inv_res = InvoiceParser.parse_invoice_stream(uploaded_invoice)
+                                if not inv_res["billing_df"].empty:
+                                    site_df = inv_res["billing_df"]
+                                    if not inv_res["penalty_df"].empty:
+                                        st.session_state["deployment_penalty_df"] = inv_res["penalty_df"]
+                                else:
+                                    site_df = InvoiceParser.parse_site_annexure_excel(uploaded_invoice)
+                            except Exception:
+                                site_df = InvoiceParser.parse_site_annexure_excel(uploaded_invoice)
                         else:
                             st.info("Parsing PDF invoice tables and site annexures...")
                             # Fallback to current master if processing raw scanned PDF
@@ -526,8 +540,15 @@ with tab_upload:
                                 outage_df = p.parse_outage_pdf(temp_p)
                                 if os.path.exists(temp_p):
                                     os.remove(temp_p)
-                            else:
-                                outage_df = pd.read_excel(uploaded_outage)
+                            elif uploaded_outage.name.endswith(".csv"):
+                                outage_df = OutageParser.parse_multi_block_outage(uploaded_outage)
+                            else: # .xlsx or .xls
+                                try:
+                                    outage_df = OutageParser.parse_multi_block_outage(uploaded_outage)
+                                    if outage_df.empty:
+                                        outage_df = pd.read_excel(uploaded_outage)
+                                except Exception:
+                                    outage_df = pd.read_excel(uploaded_outage)
 
                         # Reconcile
                         eng = ReconciliationEngine(days_in_month=days_in_month, uptime_target=uptime_target)

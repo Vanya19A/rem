@@ -138,6 +138,67 @@ class InvoiceParser:
         df = InvoiceParser._normalize_columns(df)
         return df
 
+    @classmethod
+    def parse_invoice_stream(cls, file_or_text) -> Dict[str, pd.DataFrame]:
+        """
+        Parses the new standard invoice format (CSV, Excel, or raw text) containing:
+        1. Main billing line items (GLOBAL_SITE_ID, Applied MSA Rate, Total Billing, Invoice no)
+        2. Deployment Penalty section (Days_SO to RFI, Deployment penalty)
+        """
+        import io
+        if hasattr(file_or_text, "read"):
+            raw_content = file_or_text.read()
+            if isinstance(raw_content, bytes):
+                text = raw_content.decode("utf-8", errors="ignore")
+            else:
+                text = str(raw_content)
+        elif os.path.exists(str(file_or_text)):
+            with open(str(file_or_text), "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+        else:
+            text = str(file_or_text)
+
+        lines = text.split('\n')
+        billing_lines = []
+        penalty_lines = []
+        
+        current_target = None
+        for line in lines:
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+            if 'GLOBAL_SITE_ID' in line_clean and 'Applied MSA Rate' in line_clean:
+                current_target = 'billing'
+                billing_lines.append(line_clean)
+                continue
+            elif 'GLOBAL_SITE_ID' in line_clean and 'Deployment penalty' in line_clean:
+                current_target = 'penalty'
+                penalty_lines.append(line_clean)
+                continue
+            elif 'IP hired sites Down' in line_clean:
+                break
+                
+            if current_target == 'billing':
+                if line_clean.startswith(',') and not any(c.isalnum() for c in line_clean):
+                    continue
+                billing_lines.append(line_clean)
+            elif current_target == 'penalty':
+                if line_clean.startswith(',') and not any(c.isalnum() for c in line_clean[:10]):
+                    continue
+                penalty_lines.append(line_clean)
+                
+        df_billing = pd.read_csv(io.StringIO('\n'.join(billing_lines))) if billing_lines else pd.DataFrame()
+        df_penalty = pd.read_csv(io.StringIO('\n'.join(penalty_lines))) if penalty_lines else pd.DataFrame()
+        
+        # Normalize billing columns
+        if not df_billing.empty:
+            df_billing = cls._normalize_columns(df_billing)
+            
+        return {
+            'billing_df': df_billing,
+            'penalty_df': df_penalty
+        }
+
     @staticmethod
     def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         """Clean and map messy column headers to standardized unique names."""
@@ -203,8 +264,16 @@ class InvoiceParser:
                 name = "eb_cph"
             elif "invoice no" in c_lower:
                 name = "invoice_no"
-            elif "claimed energy" in c_lower or "claimed ip fee" in c_lower:
+            elif "total billing" in c_lower or "claimed energy" in c_lower or "claimed ip fee" in c_lower or "total amount before tax" in c_lower:
                 name = "claimed_amount"
+            elif "total amount after tax" in c_lower:
+                name = "claimed_with_tax"
+            elif "applied msa rate" in c_lower or "net applied rate" in c_lower:
+                name = "msa_rate"
+            elif "opco site id" in c_lower:
+                name = "bsnl_site_id"
+            elif "site type" in c_lower:
+                name = "tower_type"
             elif "remark" in c_lower:
                 name = "field_remark"
 
